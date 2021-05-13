@@ -2,16 +2,31 @@
 
 #define DELIM ","
 #define LINE_BREAK "\n"
+#define BIN_FILE_EXT ".bin"
+
+// Header related constants (size in bytes)
+#define LINHA_HEADER_SIZE 82
+#define CODE_DESC_SIZE 15
+#define CARD_DESC_SIZE 13
+#define NAME_DESC_SIZE 13
+#define COLOR_DESC_SIZE 24
+#define INCONSISTENT_FILE "0"
+#define CONSISTENT_FILE '1'
+
+// Registry related constants (size in bytes)
+#define LINHA_FIXED_SIZE 13
+#define REMOVED_REGISTRY '0'
+#define VALID_REGISTRY '1'
 
 // (Static) Parses first CSV file line to the header struct
-// Return value: The struct that was built (LinhaHeader *)
+// Return value: A pointer to the built struct (LinhaHeader *)
 static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
     if (fpLinha) {
         char *lineRead = readline(fpLinha);
         if (lineRead) {
             LinhaHeader *newHeader = (LinhaHeader *) malloc(sizeof *newHeader);
 
-            newHeader->fileStatus = '1';
+            newHeader->fileStatus = CONSISTENT_FILE;
             newHeader->regNumber = 0;
             newHeader->byteNextReg = 0;
             newHeader->removedRegNum = 0;
@@ -41,9 +56,9 @@ static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
             char *auxString = NULL;
 
             if (lineRead[0] == '*')
-                newData->isRemoved = '0';
+                newData->isRemoved = REMOVED_REGISTRY;
             else
-                newData->isRemoved = '1';
+                newData->isRemoved = VALID_REGISTRY;
         
             newData->linhaCode = atoi(strsep(&lineRead, DELIM));
             newData->cardAcceptance = lineRead[0];
@@ -81,7 +96,7 @@ static bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
     if (binFile && headerStruct) {
         size_t bytesWritten = 0;
 
-        // Fixed side fields (82 bytes)
+        // Fixed size fields (82 bytes)
         bytesWritten += fwrite(&headerStruct->fileStatus, sizeof(char), 1, binFile);
         bytesWritten += fwrite(&headerStruct->byteNextReg, sizeof(int64_t), 1, binFile);
         bytesWritten += fwrite(&headerStruct->regNumber, sizeof(int32_t), 1, binFile);
@@ -166,19 +181,22 @@ FILE *writeLinhaBinary(char *csvFilename) {
         if (!fileHeader)
             return NULL;
         
-        // nome provisorio (precisa mudar)
+        // Generates binary filename
         csvFilename[strlen(csvFilename)-4] = '\0';
-        char *binFilename = strdup(csvFilename);
+        char binFilename[strlen(csvFilename)+1]; 
+        strcpy(binFilename, csvFilename);
+        strcat(binFilename, BIN_FILE_EXT);
+
         FILE *binFile = fopen(binFilename, "wb+");
-        free(binFilename);
         if (!binFile)
             return NULL;
         
         // Writes 82 bytes as a placeholder for the header
-        fwrite("0", sizeof(char), 1, binFile);
+        // Signing file as "inconsistent" (0)
+        fwrite(INCONSISTENT_FILE, sizeof(char), 1, binFile);
         fwrite("@", sizeof(char), LINHA_HEADER_SIZE-1, binFile);
         
-        // Read each registry from CSV file and write to binary
+        // Read each registry from CSV file and write it to binary
         LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
         char EOFFlag;
         do {
@@ -197,6 +215,7 @@ FILE *writeLinhaBinary(char *csvFilename) {
         free(newRegistry);
 
         // Rewind into binary file and write the header struct
+        // Signing file as "consistent" (1)
         fileHeader->byteNextReg = (int64_t) ftell(binFile);
         rewind(binFile);
         writeHeaderOnBinary(binFile, fileHeader);

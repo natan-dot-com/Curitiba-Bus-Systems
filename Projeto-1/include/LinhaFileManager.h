@@ -9,11 +9,6 @@
     #include <string.h>
     #include "readline.h"
 
-    #define LINHA_HEADER_SIZE 82
-    #define CODE_DESC_SIZE 15
-    #define CARD_DESC_SIZE 13
-    #define NAME_DESC_SIZE 13
-    #define COLOR_DESC_SIZE 24
     typedef struct linhaHeader_t {
         char fileStatus;
         int64_t byteNextReg;
@@ -25,8 +20,6 @@
         char *colorDescription;
     } LinhaHeader;
 
-    #define LINHA_FIXED_SIZE 13
-    #define REMOVED_REGISTRY '0'
     typedef struct linhaData_t {
         char isRemoved;
         int32_t regSize;
