@@ -3,18 +3,22 @@
 #define DELIM ","
 #define LINE_BREAK "\n"
 
-LinhaHeader *readLinhaHeader(FILE *fpLinha) {
+// (Static) Parses first CSV file line to the header struct
+// Return value: The struct that was built (LinhaHeader *)
+static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
     if (fpLinha) {
         char *lineRead = readline(fpLinha);
         if (lineRead) {
             LinhaHeader *newHeader = (LinhaHeader *) malloc(sizeof *newHeader);
 
-            newHeader->fileStatus = '0';
+            newHeader->fileStatus = '1';
             newHeader->regNumber = 0;
             newHeader->byteNextReg = 0;
             newHeader->removedRegNum = 0;
 
+            // Tracks the original pointing address so it can be free'd later on
             char *trackReference = lineRead;
+
             newHeader->codeDescription = strdup(strsep(&lineRead, DELIM));
             newHeader->cardDescription = strdup(strsep(&lineRead, DELIM));
             newHeader->nameDescription = strdup(strsep(&lineRead, DELIM));
@@ -27,8 +31,10 @@ LinhaHeader *readLinhaHeader(FILE *fpLinha) {
     return NULL;
 }
 
-bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
-    if (fpLinha && !feof(fpLinha)) {
+// (Static) Parses current CSV file line to the registry struct passed as parameter
+// Return value: If everything succeeded (boolean)
+static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
+    if (fpLinha) {
         char *lineRead = readline(fpLinha);
         if (lineRead && strlen(lineRead) > 0 && lineRead[0] != -1) {
             char *trackReference = lineRead;
@@ -44,7 +50,7 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
             lineRead += 2;
 
             newData->nameSize = 0;
-            newData->linhaName = NULL;
+            newData->linhaName = "";
             auxString = strsep(&lineRead, DELIM);
             if (strcmp(auxString, "NULO")) {
                 newData->linhaName = strdup(auxString);
@@ -52,7 +58,7 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
             }
 
             newData->colorSize = 0;
-            newData->linhaColor = NULL;
+            newData->linhaColor = "";
             auxString = strsep(&lineRead, LINE_BREAK);
             if (strcmp(auxString, "NULO")) {
                 newData->linhaColor = strdup(auxString);
@@ -69,22 +75,138 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
     return false;
 }
 
-void freeLinhaHeader(LinhaHeader **header) {
-    free((*header)->codeDescription);
-    free((*header)->cardDescription);
-    free((*header)->nameDescription);
-    free((*header)->colorDescription);
-    free(*header);
+// (Static) Writes each header field in sequence to the binary file
+// Return value: If all data were written as expected (boolean)
+static bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
+    if (binFile && headerStruct) {
+        size_t bytesWritten = 0;
+
+        // Fixed side fields (82 bytes)
+        bytesWritten += fwrite(&headerStruct->fileStatus, sizeof(char), 1, binFile);
+        bytesWritten += fwrite(&headerStruct->byteNextReg, sizeof(int64_t), 1, binFile);
+        bytesWritten += fwrite(&headerStruct->regNumber, sizeof(int32_t), 1, binFile);
+        bytesWritten += fwrite(&headerStruct->removedRegNum, sizeof(int32_t), 1, binFile);
+        bytesWritten += fwrite(headerStruct->codeDescription, sizeof(char), CODE_DESC_SIZE, binFile);
+        bytesWritten += fwrite(headerStruct->cardDescription, sizeof(char), CARD_DESC_SIZE, binFile);
+        bytesWritten += fwrite(headerStruct->nameDescription, sizeof(char), NAME_DESC_SIZE, binFile);
+        bytesWritten += fwrite(headerStruct->colorDescription, sizeof(char), COLOR_DESC_SIZE, binFile);
+
+        if (bytesWritten == LINHA_HEADER_SIZE)
+            return true;
+        return false;
+    }
+    return false;
 }
 
-void freeLinhaData(LinhaData **data) {
-    free((*data)->linhaName);
-    free((*data)->linhaColor);
-    free(*data);
+// (Static) Writes each registry field in sequence to the binary file
+// Return value: If all data were written (boolean)
+static bool writeRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
+    if (binFile && registryStruct) {
+        size_t bytesWritten = 0;
+
+        // Fixed size fields (13 bytes)
+        bytesWritten += fwrite(&registryStruct->isRemoved, sizeof(char), 1, binFile);
+        bytesWritten += fwrite(&registryStruct->regSize, sizeof(int32_t), 1, binFile);
+        bytesWritten += fwrite(&registryStruct->linhaCode, sizeof(int32_t), 1, binFile);
+        bytesWritten += fwrite(&registryStruct->cardAcceptance, sizeof(char), 1, binFile);
+
+        // Non-fixed size fields
+        bytesWritten += fwrite(&registryStruct->nameSize, sizeof(int32_t), 1, binFile);
+        if (registryStruct->nameSize > 0)
+            bytesWritten += fwrite(registryStruct->linhaName, sizeof(char), registryStruct->nameSize, binFile);
+
+        bytesWritten += fwrite(&registryStruct->colorSize, sizeof(int32_t), 1, binFile);
+        if (registryStruct->colorSize > 0)
+            bytesWritten += fwrite(registryStruct->linhaColor, sizeof(char), registryStruct->colorSize, binFile);
+
+        // Checks if everything were written correctly (Register liquid size + isRemoved size + regSize size)
+        if (bytesWritten == registryStruct->regSize + sizeof(char) + sizeof(int32_t))
+            return true;
+        return false;
+    }
+    return false;
+}
+
+// (Static) Frees everything related to the header struct (its pointer included)
+// Return value: If everything succeeded as expected (boolean)
+static bool freeLinhaHeader(LinhaHeader **header) {
+    if (header && *header) {
+        free((*header)->codeDescription);
+        free((*header)->cardDescription);
+        free((*header)->nameDescription);
+        free((*header)->colorDescription);
+        free(*header);
+        return true;
+    }
+    return false;
+}
+
+// (Static) Frees everything inside registry data struct (its pointer not included)
+// Return value: If everything succeeded as expected (boolean)
+static bool freeLinhaData(LinhaData *data) {
+    if (data) {
+        if (data->nameSize > 0)
+            free(data->linhaName);
+        if (data->colorSize > 0)
+            free(data->linhaColor);
+        return true;
+    }
+    return false;
+}
+
+// (Public) Reads a CSV file of category "Linhas" and write its respective binary file
+// Return value: File pointer to binary file (FILE *)
+FILE *writeLinhaBinary(char *csvFilename) {
+    if (csvFilename && strlen(csvFilename) > 0) {
+        FILE *csvFile = fopen(csvFilename, "r");
+        if (!csvFile)
+            return NULL;
+
+        LinhaHeader *fileHeader = readLinhaHeader(csvFile);
+        if (!fileHeader)
+            return NULL;
+        
+        // nome provisorio (precisa mudar)
+        csvFilename[strlen(csvFilename)-4] = '\0';
+        char *binFilename = strdup(csvFilename);
+        FILE *binFile = fopen(binFilename, "wb+");
+        free(binFilename);
+        if (!binFile)
+            return NULL;
+        
+        // Writes 82 bytes as a placeholder for the header
+        fwrite("0", sizeof(char), 1, binFile);
+        fwrite("@", sizeof(char), LINHA_HEADER_SIZE-1, binFile);
+        
+        // Read each registry from CSV file and write to binary
+        LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
+        char EOFFlag;
+        do {
+            EOFFlag = fgetc(csvFile);
+            if (EOFFlag != EOF) {
+                fseek(csvFile, -1, SEEK_CUR);
+                readLinhaRegistry(csvFile, newRegistry);
+                writeRegistryOnBinary(binFile, newRegistry);
+                if (newRegistry->isRemoved == REMOVED_REGISTRY)
+                    fileHeader->removedRegNum++; 
+                fileHeader->regNumber++;
+                freeLinhaData(newRegistry);
+            }
+        } while (EOFFlag != EOF);
+        fclose(csvFile);
+        free(newRegistry);
+
+        // Rewind into binary file and write the header struct
+        fileHeader->byteNextReg = (int64_t) ftell(binFile);
+        rewind(binFile);
+        writeHeaderOnBinary(binFile, fileHeader);
+        freeLinhaHeader(&fileHeader);
+        return binFile;
+    }
+    return NULL;
 }
 
 void linhaPrint(LinhaData *data) {
-
     printf("isRemoved: %c\n", data->isRemoved);
     printf("regSize: %d\n", data->regSize);
     printf("linhaCode: %d\n", data->linhaCode);

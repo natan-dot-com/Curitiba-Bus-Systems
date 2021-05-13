@@ -16,7 +16,7 @@ char *readline(FILE *stream) {
         if (pos != 0) 
             ch = fgetc(stream);
         if (ch != '\r' && ch != '\n') {
-           if (pos % READLINE_BUFFER == 0) {
+            if (pos % READLINE_BUFFER == 0) {
                 string = (char *) realloc(string, 1+(pos/READLINE_BUFFER + 1)*READLINE_BUFFER);
             }
             string[pos++] = ch;
