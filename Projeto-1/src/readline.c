@@ -1,6 +1,6 @@
 #include "readline.h"
 
-#define READLINE_BUFFER 4096
+#define READLINE_BUFFER 1024
 
 // Reads a string until '\n' or end of file
 // - Return value: Read string from stream (char *)

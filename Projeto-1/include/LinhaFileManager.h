@@ -35,4 +35,9 @@
     LinhaHeader *readLinhaHeader(FILE *fpLinha);
     bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData);
 
+    void freeLinhaHeader(LinhaHeader **header);
+    void freeLinhaData(LinhaData **data);
+
+    void linhaPrint(LinhaData *data);
+
 #endif 

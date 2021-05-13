@@ -28,9 +28,9 @@ LinhaHeader *readLinhaHeader(FILE *fpLinha) {
 }
 
 bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
-    if (fpLinha) {
+    if (fpLinha && !feof(fpLinha)) {
         char *lineRead = readline(fpLinha);
-        if (lineRead) {
+        if (lineRead && strlen(lineRead) > 0 && lineRead[0] != -1) {
             char *trackReference = lineRead;
             char *auxString = NULL;
 
@@ -41,6 +41,7 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
         
             newData->linhaCode = atoi(strsep(&lineRead, DELIM));
             newData->cardAcceptance = lineRead[0];
+            lineRead += 2;
 
             newData->nameSize = 0;
             newData->linhaName = NULL;
@@ -62,7 +63,35 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
             newData->regSize = newData->colorSize + newData->nameSize + LINHA_FIXED_SIZE;
             return true;
         }
+        free(lineRead);
         return false;
     }
     return false;
+}
+
+void freeLinhaHeader(LinhaHeader **header) {
+    free((*header)->codeDescription);
+    free((*header)->cardDescription);
+    free((*header)->nameDescription);
+    free((*header)->colorDescription);
+    free(*header);
+}
+
+void freeLinhaData(LinhaData **data) {
+    free((*data)->linhaName);
+    free((*data)->linhaColor);
+    free(*data);
+}
+
+void linhaPrint(LinhaData *data) {
+
+    printf("isRemoved: %c\n", data->isRemoved);
+    printf("regSize: %d\n", data->regSize);
+    printf("linhaCode: %d\n", data->linhaCode);
+    printf("card: %c\n", data->cardAcceptance);
+    printf("nameSize: %d\n", data->nameSize);
+    printf("linhaName: %s\n", data->linhaName);
+    printf("colorSize: %d\n", data->colorSize);
+    printf("linhaColor: %s\n", data->linhaColor);
+    printf("\n");
 }
