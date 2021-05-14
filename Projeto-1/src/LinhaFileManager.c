@@ -131,7 +131,6 @@ static bool writeRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
         bytesWritten += fwrite(&registryStruct->nameSize, sizeof(int32_t), 1, binFile);
         if (registryStruct->nameSize > 0)
             bytesWritten += fwrite(registryStruct->linhaName, sizeof(char), registryStruct->nameSize, binFile);
-
         bytesWritten += fwrite(&registryStruct->colorSize, sizeof(int32_t), 1, binFile);
         if (registryStruct->colorSize > 0)
             bytesWritten += fwrite(registryStruct->linhaColor, sizeof(char), registryStruct->colorSize, binFile);
@@ -144,14 +143,18 @@ static bool writeRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
     return false;
 }
 
-// (Static) Frees everything related to the header struct (its pointer included)
+// (Global) Frees everything related to the header struct (its pointer included)
 // Return value: If everything succeeded as expected (boolean)
-static bool freeLinhaHeader(LinhaHeader **header) {
+bool freeLinhaHeader(LinhaHeader **header) {
     if (header && *header) {
-        free((*header)->codeDescription);
-        free((*header)->cardDescription);
-        free((*header)->nameDescription);
-        free((*header)->colorDescription);
+        if ((*header)->codeDescription)
+            free((*header)->codeDescription);
+        if ((*header)->cardDescription)
+            free((*header)->cardDescription);
+        if ((*header)->nameDescription)
+            free((*header)->nameDescription);
+        if ((*header)->colorDescription)
+            free((*header)->colorDescription);
         free(*header);
         return true;
     }
@@ -171,7 +174,7 @@ static bool freeLinhaData(LinhaData *data) {
     return false;
 }
 
-// (Public) Reads a CSV file of category "Linhas" and write its respective binary file
+// (Global) Reads a CSV file of category "Linhas" and write its respective binary file
 // Return value: File pointer to binary file (FILE *)
 FILE *writeLinhaBinary(char *csvFilename) {
     if (csvFilename && strlen(csvFilename) > 0) {
@@ -228,6 +231,57 @@ FILE *writeLinhaBinary(char *csvFilename) {
     return NULL;
 }
 
+// (idk) Reads and builds the header struct from the binary file
+// Return value: A pointer for the built struct (LinhaHeader *)
+LinhaHeader *loadBinaryHeader(FILE *binFile) {
+    if (binFile) {
+        size_t bytesRead = 0;
+
+        // Check file consistency
+        char fileStatus;
+        bytesRead += fread(&fileStatus, sizeof(char), 1, binFile);
+        if (fileStatus == INCONSISTENT_FILE[0] || fileStatus == EOF || bytesRead <= 0)
+            return NULL;
+
+        LinhaHeader *newHeader = (LinhaHeader *) malloc(sizeof *newHeader);
+        newHeader->fileStatus = fileStatus;
+
+        // Load numeric file statistics
+        bytesRead += fread(&newHeader->byteNextReg, 1, sizeof(int64_t), binFile);
+        bytesRead += fread(&newHeader->regNumber, 1, sizeof(int32_t), binFile);
+        bytesRead += fread(&newHeader->removedRegNum, 1, sizeof(int32_t), binFile);
+
+        // Load header strings
+        newHeader->codeDescription = (char *) malloc(CODE_DESC_SIZE*sizeof(char));
+        bytesRead += fread(newHeader->codeDescription, sizeof(char), CODE_DESC_SIZE, binFile);
+        newHeader->cardDescription = (char *) malloc(CARD_DESC_SIZE*sizeof(char));
+        bytesRead += fread(newHeader->cardDescription, sizeof(char), CARD_DESC_SIZE, binFile);
+        newHeader->nameDescription = (char *) malloc(NAME_DESC_SIZE*sizeof(char));
+        bytesRead += fread(newHeader->nameDescription, sizeof(char), NAME_DESC_SIZE, binFile);
+        newHeader->colorDescription = (char *) malloc(COLOR_DESC_SIZE*sizeof(char));
+        bytesRead += fread(newHeader->colorDescription, sizeof(char), COLOR_DESC_SIZE, binFile);
+        
+        if (bytesRead == LINHA_HEADER_SIZE)
+            return newHeader;
+
+        freeLinhaHeader(&newHeader);
+        return NULL;
+    }
+    return NULL;
+}
+
+void printHeader(LinhaHeader *header) {
+    if (header) {
+        printf("fileStatus: %c\n", header->fileStatus);
+        printf("byteNextReg: %" PRId64 "\n", header->byteNextReg);
+        printf("regNumber: %d\n", header->regNumber);
+        printf("removedRegNum: %d\n", header->removedRegNum);
+        printf("codeDescription: %.*s\n", CODE_DESC_SIZE, header->codeDescription);
+        printf("cardDescription: %.*s\n", CARD_DESC_SIZE, header->cardDescription);
+        printf("nameDescription: %.*s\n", NAME_DESC_SIZE, header->nameDescription);
+        printf("colorDescription: %.*s\n", COLOR_DESC_SIZE, header->colorDescription);
+    }
+}
 void linhaPrint(LinhaData *data) {
     printf("isRemoved: %c\n", data->isRemoved);
     printf("regSize: %d\n", data->regSize);

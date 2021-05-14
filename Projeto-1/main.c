@@ -4,7 +4,9 @@
 
 int main(int argc, char *argv[]) {
     char *filename = readline(stdin);
-    FILE *binFile = writeLinhaBinary(filename);
+    FILE *binFile = fopen(filename, "rb");
+    LinhaHeader *newHeader = loadBinaryHeader(binFile);
+    printHeader(newHeader);
     fclose(binFile);
     free(filename);
     return 0;

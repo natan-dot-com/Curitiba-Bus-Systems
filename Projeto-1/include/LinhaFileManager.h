@@ -32,5 +32,8 @@
     } LinhaData;
 
     FILE *writeLinhaBinary(char *csvFilename);
+    LinhaHeader *loadBinaryHeader(FILE *binFile);
+    bool freeLinhaHeader(LinhaHeader **header);
+    void printHeader(LinhaHeader *header);
 
 #endif 
