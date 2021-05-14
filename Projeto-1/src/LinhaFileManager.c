@@ -55,12 +55,14 @@ static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
             char *trackReference = lineRead;
             char *auxString = NULL;
 
-            if (lineRead[0] == '*')
+            if (lineRead[0] == '*') {
                 newData->isRemoved = REMOVED_REGISTRY;
+                lineRead++;
+            }
             else
                 newData->isRemoved = VALID_REGISTRY;
         
-            newData->linhaCode = atoi(strsep(&lineRead, DELIM));
+            newData->linhaCode = atoi(strsep(&(lineRead), DELIM));
             newData->cardAcceptance = lineRead[0];
             lineRead += 2;
 
@@ -207,7 +209,8 @@ FILE *writeLinhaBinary(char *csvFilename) {
                 writeRegistryOnBinary(binFile, newRegistry);
                 if (newRegistry->isRemoved == REMOVED_REGISTRY)
                     fileHeader->removedRegNum++; 
-                fileHeader->regNumber++;
+                else
+                    fileHeader->regNumber++;
                 freeLinhaData(newRegistry);
             }
         } while (EOFFlag != EOF);
