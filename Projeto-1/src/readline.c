@@ -1,6 +1,6 @@
 #include "readline.h"
 
-#define READLINE_BUFFER 4096
+#define READLINE_BUFFER 1024
 
 // Reads a string until '\n' or end of file
 // - Return value: Read string from stream (char *)
@@ -16,7 +16,7 @@ char *readline(FILE *stream) {
         if (pos != 0) 
             ch = fgetc(stream);
         if (ch != '\r' && ch != '\n') {
-           if (pos % READLINE_BUFFER == 0) {
+            if (pos % READLINE_BUFFER == 0) {
                 string = (char *) realloc(string, 1+(pos/READLINE_BUFFER + 1)*READLINE_BUFFER);
             }
             string[pos++] = ch;
