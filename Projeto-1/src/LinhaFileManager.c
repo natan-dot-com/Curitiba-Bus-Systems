@@ -275,7 +275,7 @@ LinhaHeader *loadBinaryLinhaHeader(FILE *binFile) {
 
 // (Static) Reads and builds the registry struct (to an already existent struct) from the binary file
 // Return value: If the read succeeded as expected (boolean)
-static bool loadBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
+static bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesRead = 0;
         
@@ -316,7 +316,7 @@ static bool loadBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
     return false;
 }
 
-void printHeader(LinhaHeader *header) {
+void printLinhaHeader(LinhaHeader *header) {
     if (header) {
         printf("fileStatus: %c\n", header->fileStatus);
         printf("byteNextReg: %" PRId64 "\n", header->byteNextReg);
