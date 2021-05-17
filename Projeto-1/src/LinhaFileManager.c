@@ -298,12 +298,12 @@ static bool loadBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
         bytesRead += fread(&registryStruct->nameSize, 1, sizeof(int32_t), binFile);
         if (registryStruct->nameSize > 0) {
             registryStruct->linhaName = (char *) malloc(registryStruct->nameSize*sizeof(char));
-            bytesRead += fread(&registryStruct->linhaName, sizeof(char), registryStruct->nameSize, binFile);
+            bytesRead += fread(registryStruct->linhaName, sizeof(char), registryStruct->nameSize, binFile);
         }
         bytesRead += fread(&registryStruct->colorSize, 1, sizeof(int32_t), binFile);
         if (registryStruct->nameSize > 0) {
             registryStruct->linhaColor = (char *) malloc(registryStruct->colorSize*sizeof(char));
-            bytesRead += fread(&registryStruct->linhaColor, sizeof(char), registryStruct->colorSize, binFile);
+            bytesRead += fread(registryStruct->linhaColor, sizeof(char), registryStruct->colorSize, binFile);
         }
 
         // Check read status
