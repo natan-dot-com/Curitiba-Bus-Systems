@@ -9,6 +9,9 @@
     #include <string.h>
     #include "readline.h"
 
+    #define REMOVED_REGISTRY '0'
+    #define VALID_REGISTRY '1'
+
     typedef struct linhaHeader_t {
         char fileStatus;
         int64_t byteNextReg;
@@ -31,10 +34,13 @@
         char *linhaColor; 
     } LinhaData;
 
-    FILE *writeLinhaBinary(char *csvFilename);
+    bool writeLinhaBinary(char *csvFilename, char *binFilename);
     LinhaHeader *loadLinhaBinaryHeader(FILE *binFile);
     bool freeLinhaHeader(LinhaHeader **header);
     void printLinhaHeader(LinhaHeader *header);
     void linhaPrint(LinhaData *data);
+    bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct); 
+    void printLinhaRegistry(LinhaHeader *header, LinhaData *registry);
+    bool freeLinhaData(LinhaData *data);
 
 #endif 

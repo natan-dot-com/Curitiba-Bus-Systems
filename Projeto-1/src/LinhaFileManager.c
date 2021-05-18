@@ -3,6 +3,10 @@
 #define DELIM ","
 #define LINE_BREAK "\n"
 #define BIN_FILE_EXT ".bin"
+#define NULL_FIELD "campo com valor nulo"
+#define CARD_S_MESSAGE "PAGAMENTO SOMENTE COM CARTAO SEM PRESENCA DE COBRADOR"
+#define CARD_F_MESSAGE "PAGAMENTO EM CARTAO SOMENTE NO FINAL DE SEMANA"
+#define CARD_N_MESSAGE "PAGAMENTO EM CARTAO E DINHEIRO"
 
 // Header related constants (size in bytes)
 #define LINHA_HEADER_SIZE 82
@@ -15,8 +19,6 @@
 
 // Registry related constants (size in bytes)
 #define LINHA_FIXED_SIZE 13
-#define REMOVED_REGISTRY '0'
-#define VALID_REGISTRY '1'
 
 // (Static) Parses first CSV file line to the header struct
 // Return value: A pointer to the built struct (LinhaHeader *)
@@ -41,9 +43,9 @@ static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
             free(trackReference);
             return newHeader;
         }
-        return NULL;
+        return false;
     }
-    return NULL;
+    return false;
 }
 
 // (Static) Parses current CSV file line to the registry struct passed as parameter
@@ -53,7 +55,7 @@ static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
         char *lineRead = readline(fpLinha);
         if (lineRead && strlen(lineRead) > 0 && lineRead[0] != -1) {
             char *trackReference = lineRead;
-            char *auxString = NULL;
+            char *auxString = false;
 
             if (lineRead[0] == '*') {
                 newData->isRemoved = REMOVED_REGISTRY;
@@ -163,9 +165,9 @@ bool freeLinhaHeader(LinhaHeader **header) {
     return false;
 }
 
-// (Static) Frees everything inside registry data struct (its pointer not included)
+// (Global) Frees everything inside registry data struct (its pointer not included)
 // Return value: If everything succeeded as expected (boolean)
-static bool freeLinhaData(LinhaData *data) {
+bool freeLinhaData(LinhaData *data) {
     if (data) {
         if (data->nameSize > 0)
             free(data->linhaName);
@@ -178,25 +180,19 @@ static bool freeLinhaData(LinhaData *data) {
 
 // (Global) Reads a CSV file of category "Linhas" and write its respective binary file
 // Return value: File pointer to binary file (FILE *)
-FILE *writeLinhaBinary(char *csvFilename) {
+bool writeLinhaBinary(char *csvFilename, char *binFilename) {
     if (csvFilename && strlen(csvFilename) > 0) {
         FILE *csvFile = fopen(csvFilename, "r");
         if (!csvFile)
-            return NULL;
+            return false;
 
         LinhaHeader *fileHeader = readLinhaHeader(csvFile);
         if (!fileHeader)
-            return NULL;
+            return false;
         
-        // Generates binary filename
-        csvFilename[strlen(csvFilename)-4] = '\0';
-        char binFilename[strlen(csvFilename)+1]; 
-        strcpy(binFilename, csvFilename);
-        strcat(binFilename, BIN_FILE_EXT);
-
         FILE *binFile = fopen(binFilename, "wb+");
         if (!binFile)
-            return NULL;
+            return false;
         
         // Writes 82 bytes as a placeholder for the header
         // Signing file as "inconsistent" (0)
@@ -228,14 +224,15 @@ FILE *writeLinhaBinary(char *csvFilename) {
         rewind(binFile);
         writeHeaderOnBinary(binFile, fileHeader);
         freeLinhaHeader(&fileHeader);
-        return binFile;
+        fclose(binFile);
+        return true;
     }
-    return NULL;
+    return false;
 }
 
 // (Global) Reads and builds the header struct from the binary file
 // Return value: A pointer for the built struct (LinhaHeader *)
-LinhaHeader *loadBinaryLinhaHeader(FILE *binFile) {
+LinhaHeader *loadLinhaBinaryHeader(FILE *binFile) {
     if (binFile) {
         size_t bytesRead = 0;
 
@@ -243,7 +240,7 @@ LinhaHeader *loadBinaryLinhaHeader(FILE *binFile) {
         char fileStatus;
         bytesRead += fread(&fileStatus, 1, sizeof(char), binFile);
         if (fileStatus == INCONSISTENT_FILE[0] || fileStatus == EOF || bytesRead <= 0)
-            return NULL;
+            return false;
 
         LinhaHeader *newHeader = (LinhaHeader *) malloc(sizeof *newHeader);
         newHeader->fileStatus = fileStatus;
@@ -265,29 +262,33 @@ LinhaHeader *loadBinaryLinhaHeader(FILE *binFile) {
         
         if (bytesRead != LINHA_HEADER_SIZE) {
             freeLinhaHeader(&newHeader);
-            return NULL;
+            return false;
         }
         return newHeader;
 
     }
-    return NULL;
+    return false;
 }
 
-// (Static) Reads and builds the registry struct (to an already existent struct) from the binary file
+// (Global) Reads and builds the registry struct (to an already existent struct) from the binary file
 // Return value: If the read succeeded as expected (boolean)
-static bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
+bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesRead = 0;
         
         // Check registry removed status
         int32_t regSize;
         char registryStatus;
-        fread(&registryStatus, 1, sizeof(char), binFile);
+        if (!fread(&registryStatus, 1, sizeof(char), binFile)) {
+            return false;
+        }
         fread(&regSize, 1, sizeof(int32_t), binFile);
 
+        registryStruct->isRemoved = registryStatus;
+        registryStruct->regSize = regSize;
         if (registryStatus == REMOVED_REGISTRY) {
             fseek(binFile, regSize, SEEK_CUR);
-            return false;
+            return true;
         }
 
         // Load fixed size fields
@@ -301,7 +302,7 @@ static bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
             bytesRead += fread(registryStruct->linhaName, sizeof(char), registryStruct->nameSize, binFile);
         }
         bytesRead += fread(&registryStruct->colorSize, 1, sizeof(int32_t), binFile);
-        if (registryStruct->nameSize > 0) {
+        if (registryStruct->colorSize > 0) {
             registryStruct->linhaColor = (char *) malloc(registryStruct->colorSize*sizeof(char));
             bytesRead += fread(registryStruct->linhaColor, sizeof(char), registryStruct->colorSize, binFile);
         }
@@ -314,6 +315,37 @@ static bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
         return true;
     }
     return false;
+}
+
+void printLinhaRegistry(LinhaHeader *header, LinhaData *registry) {
+    if (header && registry) {
+        printf("%.*s: %d\n", CODE_DESC_SIZE, header->codeDescription, registry->linhaCode);
+
+        printf("%.*s: ", NAME_DESC_SIZE, header->nameDescription);
+        if (registry->nameSize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", registry->nameSize, registry->linhaName);
+
+        printf("%.*s: %.*s\n", COLOR_DESC_SIZE, header->colorDescription, registry->colorSize, registry->linhaColor);
+        
+        printf("%.*s: ", CARD_DESC_SIZE, header->cardDescription);
+        switch (registry->cardAcceptance) {
+            case 'S': {
+                printf("%s\n", CARD_S_MESSAGE);
+                break;
+            }
+            case 'N': {
+                printf("%s\n", CARD_N_MESSAGE);
+                break;
+            }
+            case 'F': {
+                printf("%s\n", CARD_F_MESSAGE);
+                break;
+            }
+        }
+        printf("\n");
+    }
 }
 
 void printLinhaHeader(LinhaHeader *header) {
