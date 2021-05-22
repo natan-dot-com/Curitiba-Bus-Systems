@@ -20,11 +20,11 @@ int main(int argc, char *argv[]) {
             // Related to: 'Veiculo' type CSV files
             case WRITE_VEICULO_BINARY: {
                 char *csvFilename, *binaryFilename;
-                csvFilename = strsep(&inputLine, DELIM);
+                csvFilename = strsep(&inputLine, SPACE_DELIM);
                 binaryFilename = strsep(&inputLine, LINE_BREAK);
                 if (!writeVeiculoBinary(csvFilename, binaryFilename)) {
                     free(trackReference);
-                    printf("%s\n", ERROR);
+                    printf("%s\n", FILE_ERROR);
                     return 1;
                 }
                 binarioNaTela(binaryFilename);
