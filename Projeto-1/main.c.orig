@@ -5,8 +5,26 @@
 #include "VeiculoFileManager.h"
 #include "Utility.h"
 
+<<<<<<< HEAD
 // Every general #define is inside Utility.h
 // Every #define related to Linha/Veiculo commands is inside its respective header file
+=======
+#define INTEGER_TYPE 'I'
+#define CHAR_TYPE 'C'
+#define STRING_TYPE 'S'
+
+#define DELIM " "
+#define LINE_BREAK "\n"
+#define ERROR "Falha no processamento do arquivo."
+#define REG_NOT_FOUND "Registro inexistente."
+
+#define WRITE_VEICULO_BINARY '1'
+#define WRITE_LINHA_BINARY '2'
+#define SHOW_VEICULO_CONTENT '3'
+#define SHOW_LINHA_CONTENT '4'
+#define SEARCH_VEICULO_CONTENT '5'
+#define SEARCH_LINHA_CONTENT '6'
+>>>>>>> 1cad2e18a6752572b32a9a71f1f2ce299d2d3523
 
 int main(int argc, char *argv[]) {
     char *inputLine = readline(stdin);
