@@ -1,25 +1,5 @@
 #include "LinhaFileManager.h"
 
-#define DELIM ","
-#define LINE_BREAK "\n"
-#define BIN_FILE_EXT ".bin"
-#define NULL_FIELD "campo com valor nulo"
-#define CARD_S_MESSAGE "PAGAMENTO SOMENTE COM CARTAO SEM PRESENCA DE COBRADOR"
-#define CARD_F_MESSAGE "PAGAMENTO EM CARTAO SOMENTE NO FINAL DE SEMANA"
-#define CARD_N_MESSAGE "PAGAMENTO EM CARTAO E DINHEIRO"
-
-// Header related constants (size in bytes)
-#define LINHA_HEADER_SIZE 82
-#define CODE_DESC_SIZE 15
-#define CARD_DESC_SIZE 13
-#define NAME_DESC_SIZE 13
-#define COLOR_DESC_SIZE 24
-#define INCONSISTENT_FILE "0"
-#define CONSISTENT_FILE '1'
-
-// Registry related constants (size in bytes)
-#define LINHA_FIXED_SIZE 13
-
 // (Static) Parses first CSV file line to the header struct
 // Return value: A pointer to the built struct (LinhaHeader *)
 static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
@@ -36,9 +16,9 @@ static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
             // Tracks the original pointing address so it can be free'd later on
             char *trackReference = lineRead;
 
-            newHeader->codeDescription = strdup(strsep(&lineRead, DELIM));
-            newHeader->cardDescription = strdup(strsep(&lineRead, DELIM));
-            newHeader->nameDescription = strdup(strsep(&lineRead, DELIM));
+            newHeader->codeDescription = strdup(strsep(&lineRead, COMMA_DELIM));
+            newHeader->cardDescription = strdup(strsep(&lineRead, COMMA_DELIM));
+            newHeader->nameDescription = strdup(strsep(&lineRead, COMMA_DELIM));
             newHeader->colorDescription = strdup(strsep(&lineRead, LINE_BREAK));
             free(trackReference);
             return newHeader;
@@ -48,14 +28,16 @@ static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
     return false;
 }
 
-// (Static) Parses current CSV file line to the registry struct passed as parameter
+// (Global) Parses current CSV file or stdin line to the registry struct passed as parameter
+// In CSV file, strsep delimiter is a comma (COMMA_DELIM)
+// In stdin, strsep delimiter is a space (SPACE_DELIM)
 // Return value: If everything succeeded (boolean)
-static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
+bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
     if (fpLinha) {
         char *lineRead = readline(fpLinha);
         if (lineRead && strlen(lineRead) > 0 && lineRead[0] != -1) {
             char *trackReference = lineRead;
-            char *auxString = false;
+            char *auxString = NULL;
 
             if (lineRead[0] == '*') {
                 newData->isRemoved = REMOVED_REGISTRY;
@@ -64,13 +46,32 @@ static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
             else
                 newData->isRemoved = VALID_REGISTRY;
         
-            newData->linhaCode = atoi(strsep(&(lineRead), DELIM));
-            newData->cardAcceptance = lineRead[0];
-            lineRead += 2;
+            if (fpLinha == stdin)
+                newData->linhaCode = atoi(strsep(&(lineRead), SPACE_DELIM));
+            else
+                newData->linhaCode = atoi(strsep(&(lineRead), COMMA_DELIM));
+
+
+            if (fpLinha == stdin) {
+                newData->cardAcceptance = strsep(&lineRead, SPACE_DELIM)[1];
+            } 
+            else {
+                newData->cardAcceptance = lineRead[0];
+                lineRead += 2;
+            }
 
             newData->nameSize = 0;
             newData->linhaName = "";
-            auxString = strsep(&lineRead, DELIM);
+            if (fpLinha == stdin) {
+                auxString = strsep(&lineRead, SPACE_DELIM);
+                if (auxString[0] == '\"') {
+                    ++auxString;
+                    auxString = strsep(&auxString, QUOTES_DELIM);
+                }
+            }
+            else
+                auxString = strsep(&lineRead, COMMA_DELIM);
+
             if (strcmp(auxString, "NULO")) {
                 newData->linhaName = strdup(auxString);
                 newData->nameSize = strlen(newData->linhaName);
@@ -78,7 +79,16 @@ static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
 
             newData->colorSize = 0;
             newData->linhaColor = "";
-            auxString = strsep(&lineRead, LINE_BREAK);
+            if (fpLinha == stdin) {
+                auxString = strsep(&lineRead, LINE_BREAK);
+                if (auxString[0] == '\"') {
+                    ++auxString;
+                    auxString = strsep(&auxString, QUOTES_DELIM);
+                }
+            }
+            else
+                auxString = strsep(&lineRead, LINE_BREAK);
+
             if (strcmp(auxString, "NULO")) {
                 newData->linhaColor = strdup(auxString);
                 newData->colorSize = strlen(newData->linhaColor);
@@ -94,9 +104,9 @@ static bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
     return false;
 }
 
-// (Static) Writes each header field in sequence to the binary file
+// (Global) Writes each header field in sequence to the binary file
 // Return value: If all data were written as expected (boolean)
-static bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
+bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
     if (binFile && headerStruct) {
         size_t bytesWritten = 0;
 
@@ -118,9 +128,9 @@ static bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
     return false;
 }
 
-// (Static) Writes each registry field in sequence to the binary file
+// (Global) Writes each registry field in sequence to the binary file
 // Return value: If all data were written (boolean)
-static bool writeRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
+bool writeRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesWritten = 0;
 
@@ -239,8 +249,8 @@ LinhaHeader *loadLinhaBinaryHeader(FILE *binFile) {
         // Check file consistency
         char fileStatus;
         bytesRead += fread(&fileStatus, 1, sizeof(char), binFile);
-        if (fileStatus == INCONSISTENT_FILE[0] || fileStatus == EOF || bytesRead <= 0)
-            return false;
+        if (fileStatus == INCONSISTENT_FILE[0] || bytesRead <= 0)
+            return NULL;
 
         LinhaHeader *newHeader = (LinhaHeader *) malloc(sizeof *newHeader);
         newHeader->fileStatus = fileStatus;
@@ -262,15 +272,15 @@ LinhaHeader *loadLinhaBinaryHeader(FILE *binFile) {
         
         if (bytesRead != LINHA_HEADER_SIZE) {
             freeLinhaHeader(&newHeader);
-            return false;
+            return NULL;
         }
         return newHeader;
 
     }
-    return false;
+    return NULL;
 }
 
-// (Global) Reads and builds the registry struct (to an already existent struct) from the binary file
+// (Global) Reads and builds the registry struct (to an already existent malloc'd struct) from the binary file
 // Return value: If the read succeeded as expected (boolean)
 bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
     if (binFile && registryStruct) {
@@ -317,57 +327,47 @@ bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
     return false;
 }
 
-void printLinhaRegistry(LinhaHeader *header, LinhaData *registry) {
+// (Global) Shows formated recovered registry information in screen.
+// Exception field is a way to select a field to not be printed (used in functionalities 5 and 6).
+// Return value: Nothing (void)
+void printLinhaRegistry(LinhaHeader *header, LinhaData *registry, const char *exceptionField) {
     if (header && registry) {
-        printf("%.*s: %d\n", CODE_DESC_SIZE, header->codeDescription, registry->linhaCode);
+        if (strcmp(exceptionField, "codLinha"))
+            printf("%.*s: %d\n", CODE_DESC_SIZE, header->codeDescription, registry->linhaCode);
 
-        printf("%.*s: ", NAME_DESC_SIZE, header->nameDescription);
-        if (registry->nameSize == 0)
-            printf("%s\n", NULL_FIELD);
-        else
-            printf("%.*s\n", registry->nameSize, registry->linhaName);
+        if (strcmp(exceptionField, "nomeLinha")) {
+            printf("%.*s: ", NAME_DESC_SIZE, header->nameDescription);
+            if (registry->nameSize == 0)
+                printf("%s\n", NULL_FIELD);
+            else
+                printf("%.*s\n", registry->nameSize, registry->linhaName);
+        }
 
-        printf("%.*s: %.*s\n", COLOR_DESC_SIZE, header->colorDescription, registry->colorSize, registry->linhaColor);
+        if (strcmp(exceptionField, "corLinha")) {
+            printf("%.*s: ", COLOR_DESC_SIZE, header->colorDescription);
+            if (registry->colorSize == 0)
+                printf("%s\n", NULL_FIELD);
+            else
+                printf("%.*s\n", registry->colorSize, registry->linhaColor);
+        }
         
-        printf("%.*s: ", CARD_DESC_SIZE, header->cardDescription);
-        switch (registry->cardAcceptance) {
-            case 'S': {
-                printf("%s\n", CARD_S_MESSAGE);
-                break;
-            }
-            case 'N': {
-                printf("%s\n", CARD_N_MESSAGE);
-                break;
-            }
-            case 'F': {
-                printf("%s\n", CARD_F_MESSAGE);
-                break;
+        if (strcmp(exceptionField, "aceitaCartao")) {
+            printf("%.*s: ", CARD_DESC_SIZE, header->cardDescription);
+            switch (registry->cardAcceptance) {
+                case 'S': {
+                    printf("%s\n", CARD_S_MESSAGE);
+                    break;
+                }
+                case 'N': {
+                    printf("%s\n", CARD_N_MESSAGE);
+                    break;
+                }
+                case 'F': {
+                    printf("%s\n", CARD_F_MESSAGE);
+                    break;
+                }
             }
         }
         printf("\n");
     }
-}
-
-void printLinhaHeader(LinhaHeader *header) {
-    if (header) {
-        printf("fileStatus: %c\n", header->fileStatus);
-        printf("byteNextReg: %" PRId64 "\n", header->byteNextReg);
-        printf("regNumber: %d\n", header->regNumber);
-        printf("removedRegNum: %d\n", header->removedRegNum);
-        printf("codeDescription: %.*s\n", CODE_DESC_SIZE, header->codeDescription);
-        printf("cardDescription: %.*s\n", CARD_DESC_SIZE, header->cardDescription);
-        printf("nameDescription: %.*s\n", NAME_DESC_SIZE, header->nameDescription);
-        printf("colorDescription: %.*s\n", COLOR_DESC_SIZE, header->colorDescription);
-    }
-}
-void linhaPrint(LinhaData *data) {
-    printf("isRemoved: %c\n", data->isRemoved);
-    printf("regSize: %d\n", data->regSize);
-    printf("linhaCode: %d\n", data->linhaCode);
-    printf("card: %c\n", data->cardAcceptance);
-    printf("nameSize: %d\n", data->nameSize);
-    printf("linhaName: %s\n", data->linhaName);
-    printf("colorSize: %d\n", data->colorSize);
-    printf("linhaColor: %s\n", data->linhaColor);
-    printf("\n");
 }
