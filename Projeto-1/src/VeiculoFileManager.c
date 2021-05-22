@@ -3,22 +3,24 @@
 #define DELIM ","
 #define LINE_BREAK "\n"
 #define BIN_FILE_EXT ".bin"
+#define NULL_FIELD "campo com valor nulo"
 
 // Header related constants (size in bytes)
 #define VEICULO_HEADER_SIZE 175
 #define PREFIX_DESC_SIZE 18
 #define DATE_DESC_SIZE 35
 #define SEATS_DESC_SIZE 42
-#define LINE_DESC_SIZE 17
-#define MODEL_DESC_SIZE 20
-#define CATEGORY_DESC_SIZE 26
+#define LINE_DESC_SIZE 26
+#define MODEL_DESC_SIZE 17
+#define CATEGORY_DESC_SIZE 20
 #define INCONSISTENT_FILE "0"
 #define CONSISTENT_FILE '1'
 
 // Registry related constants (size in bytes)
-#define VEICULO_FIXED_SIZE 36
+#define VEICULO_FIXED_SIZE 31
 #define PREFIX_SIZE 5
 #define DATE_SIZE 10
+
 #define REMOVED_REGISTRY '0'
 #define VALID_REGISTRY '1'
 
@@ -77,7 +79,7 @@ static bool readVeiculoRegistry(FILE *fpLinha, VeiculoData *newData) {
                 newData->date = strdup(auxString);
             } else {
                 newData->date = (char*)calloc(sizeof(char), DATE_SIZE);
-                newData->date = "\0@@@@@@@@@";
+                strcpy(newData->date, "\0@@@@@@@@@");
             }
             newData->seatsNumber = atoi(strsep(&(lineRead), DELIM));
             newData->linhaCode = atoi(strsep(&(lineRead), DELIM));
@@ -86,11 +88,15 @@ static bool readVeiculoRegistry(FILE *fpLinha, VeiculoData *newData) {
             if (strcmp(auxString, "NULO")) {
                 newData->model = strdup(auxString);
                 newData->modelSize = strlen(newData->model);
+            } else {
+                newData->modelSize = 0;
             }
             auxString = strsep(&lineRead, LINE_BREAK);
             if (strcmp(auxString, "NULO")) {
                 newData->category = strdup(auxString);
                 newData->categorySize = strlen(newData->category);
+            } else {
+                newData->categorySize = 0;
             }
 
             free(trackReference);
@@ -140,6 +146,7 @@ static bool writeRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct) {
         bytesWritten += fwrite(&registryStruct->isRemoved, sizeof(char), 1, binFile);
         bytesWritten += fwrite(&registryStruct->regSize, sizeof(int32_t), 1, binFile);
         bytesWritten += fwrite(registryStruct->prefix, sizeof(char), PREFIX_SIZE, binFile);
+        bytesWritten += fwrite(registryStruct->date, sizeof(char), DATE_SIZE, binFile);
         bytesWritten += fwrite(&registryStruct->seatsNumber, sizeof(int32_t), 1, binFile);
         bytesWritten += fwrite(&registryStruct->linhaCode, sizeof(int32_t), 1, binFile);
         
@@ -186,14 +193,14 @@ bool freeVeiculoHeader(VeiculoHeader **header) {
 
 // (Static) Frees everything inside registry data struct (its pointer not included)
 // Return value: If everything succeeded as expected (boolean)
-static bool freeVeiculoData(VeiculoData *data) {
+bool freeVeiculoData(VeiculoData *data) {
     if (data) {
         free(data->prefix);
         free(data->date);
         if (data->modelSize > 0)
             free(data->model);
-        if (data->modelSize > 0)
-            free(data->model);
+        if (data->categorySize > 0)
+            free(data->category);
         return true;
     }
     return false;
@@ -201,30 +208,21 @@ static bool freeVeiculoData(VeiculoData *data) {
 
 // (Global) Reads a CSV file of category "Linhas" and write its respective binary file
 // Return value: File pointer to binary file (FILE *)
-FILE *writeVeiculoBinary(char *csvFilename) {
+bool writeVeiculoBinary(char *csvFilename, char *binFilename) {
     if (csvFilename && strlen(csvFilename) > 0) {
         FILE *csvFile = fopen(csvFilename, "r");
         if (!csvFile) {
-            printf("Erro csv\n");
-            return NULL;
+            return false;
         }
 
         VeiculoHeader *fileHeader = readVeiculoHeader(csvFile);
         if (!fileHeader) {
-            printf("Erro header\n");
-            return NULL;
+            return false;
         }
-        
-        // Generates binary filename
-        csvFilename[strlen(csvFilename)-4] = '\0';
-        char binFilename[strlen(csvFilename)+1]; 
-        strcpy(binFilename, csvFilename);
-        strcat(binFilename, BIN_FILE_EXT);
 
         FILE *binFile = fopen(binFilename, "wb+");
         if (!binFile) {
-            printf("Erro bin\n");
-            return NULL;
+            return false;
         }
         
         // Writes 82 bytes as a placeholder for the header
@@ -257,14 +255,15 @@ FILE *writeVeiculoBinary(char *csvFilename) {
         rewind(binFile);
         writeHeaderOnBinary(binFile, fileHeader);
         freeVeiculoHeader(&fileHeader);
-        return binFile;
+        fclose(binFile);
+        return true;
     }
-    return NULL;
+    return false;
 }
 
 // (Global) Reads and builds the header struct from the binary file
 // Return value: A pointer for the built struct (LinhaHeader *)
-VeiculoHeader *loadBinaryVeiculoHeader(FILE *binFile) {
+VeiculoHeader *loadVeiculoBinaryHeader(FILE *binFile) {
     if (binFile) {
         size_t bytesRead = 0;
 
@@ -308,48 +307,59 @@ VeiculoHeader *loadBinaryVeiculoHeader(FILE *binFile) {
 
 // (Static) Reads and builds the registry struct (to an already existent struct) from the binary file
 // Return value: If the read succeeded as expected (boolean)
-static bool loadBinaryRegistry(FILE *binFile, VeiculoData *registryStruct) {
+bool loadVeiculoBinaryRegistry(FILE *binFile, VeiculoData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesRead = 0;
         
         // Check registry removed status
         int32_t regSize;
         char registryStatus;
-        fread(&registryStatus, 1, sizeof(char), binFile);
+        if(!fread(&registryStatus, 1, sizeof(char), binFile)) {
+            return false;
+        }
         fread(&regSize, 1, sizeof(int32_t), binFile);
 
+        registryStruct->isRemoved = registryStatus;
+        registryStruct->regSize = regSize;
         if (registryStatus == REMOVED_REGISTRY) {
-            fseek(binFile, regSize, SEEK_CUR);
-            return false;
+            fseek(binFile, regSize - 5, SEEK_CUR); //need to fseek regsize-5 ahead of current posistion because some bytes were already read
+            return true;
         }
 
         // Load fixed size fields
-        bytesRead += fread(&registryStruct->prefix, PREFIX_SIZE, sizeof(char), binFile);
-        bytesRead += fread(&registryStruct->date, DATE_SIZE, sizeof(char), binFile);
+        registryStruct->prefix = (char *) malloc(PREFIX_SIZE*sizeof(char));
+        bytesRead += fread(registryStruct->prefix, sizeof(char), PREFIX_SIZE, binFile);
+        
+        registryStruct->date = (char *) malloc(DATE_SIZE*sizeof(char));
+        bytesRead += fread(registryStruct->date, sizeof(char), DATE_SIZE, binFile);
+
         bytesRead += fread(&registryStruct->seatsNumber, 1, sizeof(int32_t), binFile);
+
         bytesRead += fread(&registryStruct->linhaCode, 1, sizeof(int32_t), binFile);
 
         // Load dynamic size fields
         bytesRead += fread(&registryStruct->modelSize, 1, sizeof(int32_t), binFile);
         if (registryStruct->modelSize > 0) {
             registryStruct->model = (char *) malloc(registryStruct->modelSize*sizeof(char));
-            bytesRead += fread(&registryStruct->model, sizeof(char), registryStruct->modelSize, binFile);
+            bytesRead += fread(registryStruct->model, sizeof(char), registryStruct->modelSize, binFile);
         }
         bytesRead += fread(&registryStruct->categorySize, 1, sizeof(int32_t), binFile);
         if (registryStruct->categorySize > 0) {
             registryStruct->category = (char *) malloc(registryStruct->categorySize*sizeof(char));
-            bytesRead += fread(&registryStruct->category, sizeof(char), registryStruct->categorySize, binFile);
+            bytesRead += fread(registryStruct->category, sizeof(char), registryStruct->categorySize, binFile);
         }
 
         // Check read status
-        if (bytesRead != VEICULO_FIXED_SIZE + registryStruct->categorySize + registryStruct->categorySize) {
+        if (bytesRead != VEICULO_FIXED_SIZE + registryStruct->modelSize + registryStruct->categorySize) {
             freeVeiculoData(registryStruct);
             return false;
         }
         return true;
     }
+    
     return false;
 }
+
 
 void printVeiculoHeader(VeiculoHeader *header) {
     if (header) {
@@ -365,16 +375,51 @@ void printVeiculoHeader(VeiculoHeader *header) {
         printf("categoryDescription: %.*s\n", CATEGORY_DESC_SIZE, header->categoryDescription);
     }
 }
+
+/*
 void printVeiculoRegistry(VeiculoData *data) {
     printf("isRemoved: %c\n", data->isRemoved);
     printf("regSize: %d\n", data->regSize);
-    printf("prefix: %s\n", data->prefix);
-    printf("date: %s\n", data->date);
+    printf("prefix: %.*s\n", PREFIX_SIZE, data->prefix);
+    printf("date: %.*s\n", DATE_SIZE, data->date);
     printf("seatsNumber: %d\n", data->seatsNumber);
     printf("linhaCode: %d\n", data->linhaCode);
     printf("modelSize: %d\n", data->modelSize);
-    printf("model: %s\n", data->model);
+    printf("model: %.*s\n", data->modelSize, data->model);
     printf("categorySize: %d\n", data->categorySize);
-    printf("category: %s\n", data->category);
+    printf("category: %.*s\n", data->categorySize, data->category);
     printf("\n");
+}
+*/
+
+void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
+    if (header && registry) {
+        printf("%.*s: %.*s\n", PREFIX_DESC_SIZE, header->prefixDescription, PREFIX_SIZE, registry->prefix);
+
+        printf("%.*s: ", MODEL_DESC_SIZE, header->modelDescription);
+        if (registry->modelSize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", registry->modelSize, registry->model);
+
+        printf("%.*s: ", CATEGORY_DESC_SIZE, header->categoryDescription);
+        if (registry->categorySize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", registry->categorySize, registry->category);
+        
+        printf("%.*s: ", DATE_DESC_SIZE, header->dateDescription);
+        if(registry->date[0] == '\0')
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", DATE_SIZE, registry->date);
+
+        printf("%.*s: ", SEATS_DESC_SIZE, header->seatsDescription);
+        if(registry->seatsNumber == -1)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%d\n", registry->seatsNumber);
+
+        printf("\n");
+    }
 }

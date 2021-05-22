@@ -35,10 +35,13 @@
         char *category;
     } VeiculoData;
 
-    FILE *writeVeiculoBinary(char *csvFilename);
-    VeiculoHeader *loadVeiculoBinaryHeader(FILE *binFile);
+    bool writeVeiculoBinary(char *csvFilename, char *binFilename);
     bool freeVeiculoHeader(VeiculoHeader **header);
+    VeiculoHeader *loadVeiculoBinaryHeader(FILE *binFile);
+    bool loadVeiculoBinaryRegistry(FILE *binFile, VeiculoData *registryStruct);
+    bool freeVeiculoData(VeiculoData *data);
+    
     void printVeiculoHeader(VeiculoHeader *header);
-    void printVeiculoRegistry(VeiculoData *data);
+    void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry);
 
 #endif 

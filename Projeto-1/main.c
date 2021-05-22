@@ -18,6 +18,7 @@
 #define WRITE_LINHA_BINARY '2'
 #define SHOW_VEICULO_CONTENT '3'
 #define SHOW_LINHA_CONTENT '4'
+#define SEARCH_VEICULO_CONTENT '5'
 #define SEARCH_LINHA_CONTENT '6'
 
 int main(int argc, char *argv[]) {
@@ -28,6 +29,15 @@ int main(int argc, char *argv[]) {
     if (inputCommand) {
         switch(inputCommand[0]) {
             case WRITE_VEICULO_BINARY: {
+                char *csvFilename, *binaryFilename;
+                csvFilename = strsep(&inputLine, DELIM);
+                binaryFilename = strsep(&inputLine, LINE_BREAK);
+                if (!writeVeiculoBinary(csvFilename, binaryFilename)) {
+                    free(trackReference);
+                    printf("%s\n", ERROR);
+                    return 1;
+                }
+                binarioNaTela(binaryFilename);
                 break;
             }
             case WRITE_LINHA_BINARY: {
@@ -43,7 +53,28 @@ int main(int argc, char *argv[]) {
                 break;
             }
             case SHOW_VEICULO_CONTENT: {
-                break;
+                char *binaryFilename = strsep(&inputLine, LINE_BREAK);
+                FILE *binFile = fopen(binaryFilename, "rb");
+                if (!binFile) {
+                    printf("%s\n", ERROR);
+                    return 1;
+                }
+                VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
+                if (fileHeader->regNumber == 0) {
+                    printf("%s\n", REG_NOT_FOUND);
+                    return 1;
+                }
+                VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
+                while (loadVeiculoBinaryRegistry(binFile, newRegistry)) {
+                    if (newRegistry->isRemoved == VALID_REGISTRY) {
+                        printVeiculoRegistry(fileHeader, newRegistry);
+                        freeVeiculoData(newRegistry);
+                    }
+                }
+                free(newRegistry);
+                freeVeiculoHeader(&fileHeader);
+                fclose(binFile);
+                break; 
             }
             case SHOW_LINHA_CONTENT: {
                 char *binaryFilename = strsep(&inputLine, LINE_BREAK);
