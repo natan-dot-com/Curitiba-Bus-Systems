@@ -1,7 +1,7 @@
 #include "VeiculoFileManager.h"
 
 // (Static) Parses first CSV file line to the header struct
-// Return value: A pointer to the built struct (LinhaHeader *)
+// Return value: A pointer to the built struct (VeiculoHeader *)
 static VeiculoHeader *readVeiculoHeader(FILE *fpVeiculo) {
     if (fpVeiculo) {
         char *lineRead = readline(fpVeiculo);
@@ -360,9 +360,11 @@ void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
             printf("%s\n", NULL_FIELD);
         else {
             int year, month, day;
+            char *trackReference = registry->date;
             year = atoi(strsep(&registry->date, "-"));
             month = atoi(strsep(&registry->date, "-"));
             day = atoi(strsep(&registry->date, LINE_BREAK));
+            free(trackReference);
             
             printf("%d de ", day);
             switch(month) {
