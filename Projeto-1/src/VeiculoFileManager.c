@@ -95,7 +95,7 @@ bool writeVeiculoHeaderOnBinary(FILE *binFile, VeiculoHeader *headerStruct) {
     if (binFile && headerStruct) {
         size_t bytesWritten = 0;
 
-        // Fixed size fields (82 bytes)
+        // Fixed size fields (175 bytes)
         bytesWritten += fwrite(&headerStruct->fileStatus, sizeof(char), 1, binFile);
         bytesWritten += fwrite(&headerStruct->byteNextReg, sizeof(int64_t), 1, binFile);
         bytesWritten += fwrite(&headerStruct->regNumber, sizeof(int32_t), 1, binFile);
@@ -121,7 +121,7 @@ bool writeVeiculoRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesWritten = 0;
 
-        // Fixed size fields (13 bytes)
+        // Fixed size fields (15 bytes)
         bytesWritten += fwrite(&registryStruct->isRemoved, sizeof(char), 1, binFile);
         bytesWritten += fwrite(&registryStruct->regSize, sizeof(int32_t), 1, binFile);
         bytesWritten += fwrite(registryStruct->prefix, sizeof(char), PREFIX_SIZE, binFile);
@@ -356,15 +356,20 @@ void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
             printf("%.*s\n", registry->categorySize, registry->category);
 
         printf("%.*s: ", DATE_DESC_SIZE, header->dateDescription);
-        if(registry->date[0] == '\0')
+        if(registry->date[0] == '\0') {
             printf("%s\n", NULL_FIELD);
+        }
         else {
             int year, month, day;
             char *trackReference = registry->date;
             year = atoi(strsep(&registry->date, "-"));
             month = atoi(strsep(&registry->date, "-"));
-            day = atoi(strsep(&registry->date, LINE_BREAK));
-            free(trackReference);
+
+            char auxString[3];
+            strncpy(auxString, registry->date, 2);
+            auxString[2] = '\0';
+            day = atoi(auxString);
+            registry->date = trackReference;
             
             printf("%d de ", day);
             switch(month) {
