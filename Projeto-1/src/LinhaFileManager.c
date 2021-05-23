@@ -1,4 +1,5 @@
 #include "LinhaFileManager.h"
+#include "Utility.h"
 
 // (Static) Parses first CSV file line to the header struct
 // Return value: A pointer to the built struct (LinhaHeader *)
@@ -30,11 +31,13 @@ static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
 
 // (Global) Parses current CSV file or stdin line to the registry struct passed as parameter
 // In CSV file, strsep delimiter is a comma (COMMA_DELIM)
-// In stdin, strsep delimiter is a space (SPACE_DELIM)
 // Return value: If everything succeeded (boolean)
 bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
     if (fpLinha) {
         char *lineRead = readline(fpLinha);
+        if (fpLinha == stdin)
+            tranformToCsvFormat(lineRead);
+
         if (lineRead && strlen(lineRead) > 0 && lineRead[0] != -1) {
             char *trackReference = lineRead;
             char *auxString = NULL;
@@ -46,32 +49,12 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
             else
                 newData->isRemoved = VALID_REGISTRY;
         
-            if (fpLinha == stdin)
-                newData->linhaCode = atoi(strsep(&(lineRead), SPACE_DELIM));
-            else
-                newData->linhaCode = atoi(strsep(&(lineRead), COMMA_DELIM));
-
-
-            if (fpLinha == stdin) {
-                newData->cardAcceptance = strsep(&lineRead, SPACE_DELIM)[1];
-            } 
-            else {
-                newData->cardAcceptance = lineRead[0];
-                lineRead += 2;
-            }
+            newData->linhaCode = atoi(strsep(&(lineRead), COMMA_DELIM));
+            newData->cardAcceptance = strsep(&(lineRead), COMMA_DELIM)[0];
 
             newData->nameSize = 0;
             newData->linhaName = "";
-            if (fpLinha == stdin) {
-                auxString = strsep(&lineRead, SPACE_DELIM);
-                if (auxString[0] == '\"') {
-                    ++auxString;
-                    auxString = strsep(&auxString, QUOTES_DELIM);
-                }
-            }
-            else
-                auxString = strsep(&lineRead, COMMA_DELIM);
-
+            auxString = strsep(&lineRead, COMMA_DELIM);
             if (strcmp(auxString, "NULO")) {
                 newData->linhaName = strdup(auxString);
                 newData->nameSize = strlen(newData->linhaName);
@@ -79,16 +62,7 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
 
             newData->colorSize = 0;
             newData->linhaColor = "";
-            if (fpLinha == stdin) {
-                auxString = strsep(&lineRead, LINE_BREAK);
-                if (auxString[0] == '\"') {
-                    ++auxString;
-                    auxString = strsep(&auxString, QUOTES_DELIM);
-                }
-            }
-            else
-                auxString = strsep(&lineRead, LINE_BREAK);
-
+            auxString = strsep(&lineRead, LINE_BREAK);
             if (strcmp(auxString, "NULO")) {
                 newData->linhaColor = strdup(auxString);
                 newData->colorSize = strlen(newData->linhaColor);

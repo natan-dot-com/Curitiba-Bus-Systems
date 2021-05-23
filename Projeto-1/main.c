@@ -329,13 +329,12 @@ int main(int argc, char *argv[]) {
 
                 rewind(binFile);
                 fwrite(INCONSISTENT_FILE, 1, sizeof(char), binFile);
+                fflush(binFile);
                 fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
 
                 VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
                 for (int i = 0; i < insertNumber; i++) {
-                    char *lineRead = readline(stdin);
-                    tranformToCsvFormat(lineRead);
-                    readVeiculoRegistry(lineRead, newRegistry);
+                    readVeiculoRegistry(stdin, newRegistry);
                     if (newRegistry->isRemoved == REMOVED_REGISTRY)
                         fileHeader->removedRegNum++;
                     else
@@ -376,6 +375,7 @@ int main(int argc, char *argv[]) {
 
                 rewind(binFile);
                 fwrite(INCONSISTENT_FILE, 1, sizeof(char), binFile);
+                fflush(binFile);
                 fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
 
                 LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
