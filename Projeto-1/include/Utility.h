@@ -5,6 +5,7 @@
     #include <stdlib.h>
     #include <string.h>
     #include <ctype.h>
+    #include <stdbool.h>
 
     // Delimiters for strsep
     #define NONE ""
@@ -30,6 +31,7 @@
     #define INTEGER_TYPE 'I'
     #define CHAR_TYPE 'C'
     #define STRING_TYPE 'S'
+    #define FIXED_SIZE_STRING_TYPE 'F'
 
     // Commands code identifier
     #define WRITE_VEICULO_BINARY '1'
@@ -42,5 +44,7 @@
     #define INSERT_LINHA_CONTENT '8'
 
     void binarioNaTela(char *nomeArquivoBinario);
+    
+    void tranformToCsvFormat(char *inputString);
 
 #endif 

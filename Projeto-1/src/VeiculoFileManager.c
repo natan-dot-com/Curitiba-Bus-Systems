@@ -1,34 +1,11 @@
 #include "VeiculoFileManager.h"
 
-#define DELIM ","
-#define LINE_BREAK "\n"
-#define BIN_FILE_EXT ".bin"
-#define NULL_FIELD "campo com valor nulo"
-
-// Header related constants (size in bytes)
-#define VEICULO_HEADER_SIZE 175
-#define PREFIX_DESC_SIZE 18
-#define DATE_DESC_SIZE 35
-#define SEATS_DESC_SIZE 42
-#define LINE_DESC_SIZE 26
-#define MODEL_DESC_SIZE 17
-#define CATEGORY_DESC_SIZE 20
-#define INCONSISTENT_FILE "0"
-#define CONSISTENT_FILE '1'
-
-// Registry related constants (size in bytes)
-#define VEICULO_FIXED_SIZE 31
-#define PREFIX_SIZE 5
-#define DATE_SIZE 10
-
-#define REMOVED_REGISTRY '0'
-#define VALID_REGISTRY '1'
 
 // (Static) Parses first CSV file line to the header struct
 // Return value: A pointer to the built struct (LinhaHeader *)
-static VeiculoHeader *readVeiculoHeader(FILE *fpLinha) {
-    if (fpLinha) {
-        char *lineRead = readline(fpLinha);
+static VeiculoHeader *readVeiculoHeader(FILE *fpVeiculo) {
+    if (fpVeiculo) {
+        char *lineRead = readline(fpVeiculo);
         if (lineRead) {
             VeiculoHeader *newHeader = (VeiculoHeader *) malloc(sizeof *newHeader);
 
@@ -57,62 +34,68 @@ static VeiculoHeader *readVeiculoHeader(FILE *fpLinha) {
 // (Static) Parses current CSV file line to the registry struct passed as parameter
 // Return value: If everything succeeded (boolean)
 
-static bool readVeiculoRegistry(FILE *fpLinha, VeiculoData *newData) {
-    if (fpLinha) {
-        char *lineRead = readline(fpLinha);
-        if (lineRead && strlen(lineRead) > 0 && lineRead[0] != -1) {
-            char *trackReference = lineRead;
-            char *auxString = NULL;
-
-            if (lineRead[0] == '*') {
-                newData->isRemoved = REMOVED_REGISTRY;
-                lineRead++;
-            }
-            else
-                newData->isRemoved = VALID_REGISTRY;
-
-            auxString = strsep(&lineRead, DELIM);
-            newData->prefix = strdup(auxString);
-
-            auxString = strsep(&lineRead, DELIM);
-            if (strcmp(auxString, "NULO")) {
-                newData->date = strdup(auxString);
-            } else {
-                newData->date = (char*)calloc(sizeof(char), DATE_SIZE);
-                strcpy(newData->date, "\0@@@@@@@@@");
-            }
-            newData->seatsNumber = atoi(strsep(&(lineRead), DELIM));
-            newData->linhaCode = atoi(strsep(&(lineRead), DELIM));
-            
-            auxString = strsep(&lineRead, DELIM);
-            if (strcmp(auxString, "NULO")) {
-                newData->model = strdup(auxString);
-                newData->modelSize = strlen(newData->model);
-            } else {
-                newData->modelSize = 0;
-            }
-            auxString = strsep(&lineRead, LINE_BREAK);
-            if (strcmp(auxString, "NULO")) {
-                newData->category = strdup(auxString);
-                newData->categorySize = strlen(newData->category);
-            } else {
-                newData->categorySize = 0;
-            }
-
-            free(trackReference);
-
-            newData->regSize = newData->modelSize + newData->categorySize + VEICULO_FIXED_SIZE;
-            return true;
-        }
-        free(lineRead);
-        return false;
+static bool readVeiculoRegistryCsv(FILE *fpVeiculo, VeiculoData *newData) {
+    if (fpVeiculo) {
+        char *lineRead = readline(fpVeiculo);
+        readVeiculoRegistry(lineRead, newData);
     }
+    return false;
+}
+
+
+bool readVeiculoRegistry(char *stringVeiculo, VeiculoData *newData) {
+    if (stringVeiculo && strlen(stringVeiculo) > 0 && stringVeiculo[0] != -1) {
+        char *trackReference = stringVeiculo;
+        char *auxString = NULL;
+
+        if (stringVeiculo[0] == '*') {
+            newData->isRemoved = REMOVED_REGISTRY;
+            stringVeiculo++;
+        }
+        else
+            newData->isRemoved = VALID_REGISTRY;
+
+        auxString = strsep(&stringVeiculo, DELIM);
+        newData->prefix = strdup(auxString);
+
+        auxString = strsep(&stringVeiculo, DELIM);
+        if (strcmp(auxString, "NULO")) {
+            newData->date = strdup(auxString);
+        } else {
+            newData->date = (char*)calloc(sizeof(char), DATE_SIZE);
+            strncpy(newData->date, "@@@@@@@@@@", DATE_SIZE);
+            newData->date[0] = '\0';
+        }
+        newData->seatsNumber = atoi(strsep(&(stringVeiculo), DELIM));
+        newData->linhaCode = atoi(strsep(&(stringVeiculo), DELIM));
+        
+        auxString = strsep(&stringVeiculo, DELIM);
+        if (strcmp(auxString, "NULO")) {
+            newData->model = strdup(auxString);
+            newData->modelSize = strlen(newData->model);
+        } else {
+            newData->modelSize = 0;
+        }
+        auxString = strsep(&stringVeiculo, LINE_BREAK);
+        if (strcmp(auxString, "NULO")) {
+            newData->category = strdup(auxString);
+            newData->categorySize = strlen(newData->category);
+        } else {
+            newData->categorySize = 0;
+        }
+
+        free(trackReference);
+
+        newData->regSize = newData->modelSize + newData->categorySize + VEICULO_FIXED_SIZE;
+        return true;
+    }
+    free(stringVeiculo);
     return false;
 }
 
 // (Static) Writes each header field in sequence to the binary file
 // Return value: If all data were written as expected (boolean)
-static bool writeHeaderOnBinary(FILE *binFile, VeiculoHeader *headerStruct) {
+bool writeVeiculoHeaderOnBinary(FILE *binFile, VeiculoHeader *headerStruct) {
     if (binFile && headerStruct) {
         size_t bytesWritten = 0;
 
@@ -138,7 +121,7 @@ static bool writeHeaderOnBinary(FILE *binFile, VeiculoHeader *headerStruct) {
 
 // (Static) Writes each registry field in sequence to the binary file
 // Return value: If all data were written (boolean)
-static bool writeRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct) {
+bool writeVeiculoRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesWritten = 0;
 
@@ -237,8 +220,8 @@ bool writeVeiculoBinary(char *csvFilename, char *binFilename) {
             EOFFlag = fgetc(csvFile);
             if (EOFFlag != EOF) {
                 fseek(csvFile, -1, SEEK_CUR);
-                readVeiculoRegistry(csvFile, newRegistry);
-                writeRegistryOnBinary(binFile, newRegistry);
+                readVeiculoRegistryCsv(csvFile, newRegistry);
+                writeVeiculoRegistryOnBinary(binFile, newRegistry);
                 if (newRegistry->isRemoved == REMOVED_REGISTRY)
                     fileHeader->removedRegNum++; 
                 else
@@ -253,7 +236,7 @@ bool writeVeiculoBinary(char *csvFilename, char *binFilename) {
         // Signing file as "consistent" (1)
         fileHeader->byteNextReg = (int64_t) ftell(binFile);
         rewind(binFile);
-        writeHeaderOnBinary(binFile, fileHeader);
+        writeVeiculoHeaderOnBinary(binFile, fileHeader);
         freeVeiculoHeader(&fileHeader);
         fclose(binFile);
         return true;
@@ -407,12 +390,60 @@ void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
             printf("%s\n", NULL_FIELD);
         else
             printf("%.*s\n", registry->categorySize, registry->category);
-        
+
         printf("%.*s: ", DATE_DESC_SIZE, header->dateDescription);
         if(registry->date[0] == '\0')
             printf("%s\n", NULL_FIELD);
-        else
-            printf("%.*s\n", DATE_SIZE, registry->date);
+        else {
+            int year, month, day;
+            year = atoi(strsep(&registry->date, "-"));
+            month = atoi(strsep(&registry->date, "-"));
+            day = atoi(strsep(&registry->date, LINE_BREAK));
+            
+            printf("%d de ", day);
+
+            switch(month) {
+                case 1:
+                    printf("Janeiro");
+                    break;
+                case 2:
+                    printf("Fevereiro");
+                    break;
+                case 3:
+                    printf("Março");
+                    break;
+                case 4:
+                    printf("Abril");
+                    break;
+                case 5:
+                    printf("Maio");
+                    break;
+                case 6:
+                    printf("Junho");
+                    break;
+                case 7:
+                    printf("Julho");
+                    break;
+                case 8:
+                    printf("Agosto");
+                    break;
+                case 9:
+                    printf("Setembro");
+                    break;
+                case 10:
+                    printf("Outubro");
+                    break;
+                case 11:
+                    printf("Novembro");
+                    break;
+                case 12:
+                    printf("Dezembro");
+                    break;
+                
+            }
+
+            printf(" de %d\n", year);
+        }
 
         printf("%.*s: ", SEATS_DESC_SIZE, header->seatsDescription);
         if(registry->seatsNumber == -1)

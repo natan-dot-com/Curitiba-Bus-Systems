@@ -9,6 +9,30 @@
     #include <string.h>
     #include "readline.h"
 
+    #define DELIM ","
+    #define LINE_BREAK "\n"
+    #define BIN_FILE_EXT ".bin"
+    #define NULL_FIELD "campo com valor nulo"
+
+    // Header related constants (size in bytes)
+    #define VEICULO_HEADER_SIZE 175
+    #define PREFIX_DESC_SIZE 18
+    #define DATE_DESC_SIZE 35
+    #define SEATS_DESC_SIZE 42
+    #define LINE_DESC_SIZE 26
+    #define MODEL_DESC_SIZE 17
+    #define CATEGORY_DESC_SIZE 20
+    #define INCONSISTENT_FILE "0"
+    #define CONSISTENT_FILE '1'
+
+    // Registry related constants (size in bytes)
+    #define VEICULO_FIXED_SIZE 31
+    #define PREFIX_SIZE 5
+    #define DATE_SIZE 10
+
+    #define REMOVED_REGISTRY '0'
+    #define VALID_REGISTRY '1'
+
     typedef struct veiculoHeader_t {
         char fileStatus;
         int64_t byteNextReg;
@@ -35,11 +59,17 @@
         char *category;
     } VeiculoData;
 
-    bool writeVeiculoBinary(char *csvFilename, char *binFilename);
-    bool freeVeiculoHeader(VeiculoHeader **header);
     VeiculoHeader *loadVeiculoBinaryHeader(FILE *binFile);
     bool loadVeiculoBinaryRegistry(FILE *binFile, VeiculoData *registryStruct);
+
+    bool readVeiculoRegistry(char *stringVeiculo, VeiculoData *newData);
+
+    bool freeVeiculoHeader(VeiculoHeader **header);
     bool freeVeiculoData(VeiculoData *data);
+
+    bool writeVeiculoBinary(char *csvFilename, char *binFilename);
+    bool writeVeiculoHeaderOnBinary(FILE *binFile, VeiculoHeader *headerStruct);
+    bool writeVeiculoRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct);
     
     void printVeiculoHeader(VeiculoHeader *header);
     void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry);

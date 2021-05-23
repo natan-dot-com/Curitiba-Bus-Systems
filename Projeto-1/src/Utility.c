@@ -27,3 +27,18 @@ void binarioNaTela(char *nomeArquivoBinario) { /* Você não precisa entender o 
 	free(mb);
 	fclose(fs);
 }
+
+void tranformToCsvFormat(char *inputString) {
+	bool isQuote = false;
+	for(int i = 0; inputString[i] != '\0'; i++) {
+		if(inputString[i] == '"') {
+			isQuote = !isQuote;
+			for(int j = i; inputString[j] != '\0'; j++) {
+				inputString[j] = inputString[j+1];
+			}
+		}
+		if(inputString[i] == ' ' && !isQuote) {
+			inputString[i] = ',' ;
+		}
+	}
+}

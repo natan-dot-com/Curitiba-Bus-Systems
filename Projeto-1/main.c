@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
                 VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
-                if (fileHeader->regNumber == 0) {
+                if (fileHeader == NULL || fileHeader->regNumber == 0) {
                     printf("%s\n", REG_NOT_FOUND);
                     return 1;
                 }
@@ -111,6 +111,109 @@ int main(int argc, char *argv[]) {
             // Functionality 5: Searches for a specified field inside binary file
             // Related to: 'Veiculo' type binary files
             case SEARCH_VEICULO_CONTENT: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                char *fieldName = strsep(&inputLine, SPACE_DELIM);
+                char *fieldValue = NULL;
+
+                FILE *binFile = fopen(binaryFilename, "rb");
+                if (!binFile) {
+                    printf("%s\n", FILE_ERROR);
+                    return 1;
+                }
+
+                VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
+                if (!fileHeader) {
+                    printf("%s\n", FILE_ERROR);
+                    return 1;
+                }
+                else if (fileHeader == NULL || fileHeader->regNumber == 0) {
+                    printf("%s\n", REG_NOT_FOUND);
+                    return 1;
+                }
+                
+                VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
+
+                void *searchedField = NULL;
+                int32_t *fieldSize = NULL;
+                int32_t fixedFieldSize = 0;
+                char fieldType;
+                //prefixo, data, quantidadeLugares, modelo, categoria
+                if (!strcmp(fieldName, "prefixo")) {
+                    ++inputLine;
+                    fieldValue = strsep(&inputLine, QUOTES_DELIM);
+                    searchedField = (char **) &newRegistry->prefix;
+                    fixedFieldSize = PREFIX_SIZE;
+                    fieldType = FIXED_SIZE_STRING_TYPE;
+                }
+                else if (!strcmp(fieldName, "data")) {
+                    ++inputLine;
+                    fieldValue = strsep(&inputLine, QUOTES_DELIM);
+                    searchedField = (char **) &newRegistry->date;
+                    fixedFieldSize = DATE_SIZE;
+                    fieldType = FIXED_SIZE_STRING_TYPE;
+                }
+                else if (!strcmp(fieldName, "quantidadeLugares")) {
+                    fieldValue = strsep(&inputLine, LINE_BREAK);
+                    searchedField = (int32_t*) &newRegistry->seatsNumber;
+                    fieldType = INTEGER_TYPE;
+                }
+                else if (!strcmp(fieldName, "modelo")) {
+                    ++inputLine;
+                    fieldValue = strsep(&inputLine, QUOTES_DELIM);
+                    searchedField = (char **) &newRegistry->model;
+                    fieldSize = &newRegistry->modelSize;
+                    fieldType = STRING_TYPE;
+                }
+                else if (!strcmp(fieldName, "categoria")) {
+                    ++inputLine;
+                    fieldValue = strsep(&inputLine, QUOTES_DELIM);
+                    searchedField = (char **) &newRegistry->category;
+                    fieldSize = &newRegistry->categorySize;
+                    fieldType = STRING_TYPE;
+                }
+
+                int8_t foundRegistries = 0;
+                while (loadVeiculoBinaryRegistry(binFile, newRegistry)) {
+                    if (newRegistry->isRemoved == VALID_REGISTRY) {
+                        switch (fieldType) {
+                            case INTEGER_TYPE : {
+                                if (*((int32_t *) searchedField) == atoi(fieldValue)) {
+                                    printVeiculoRegistry(fileHeader, newRegistry);
+                                    foundRegistries++;
+                                }
+                                break;
+                            }
+                            case CHAR_TYPE : {
+                                if (*((char *) searchedField) == fieldValue[0]) {
+                                    printVeiculoRegistry(fileHeader, newRegistry);
+                                    foundRegistries++;
+                                }
+                                break;
+                            }
+                            case STRING_TYPE : {
+                                if (*fieldSize > 0 && !strncmp(*(char **) searchedField, fieldValue, *fieldSize)) {
+                                    printVeiculoRegistry(fileHeader, newRegistry);
+                                    foundRegistries++;
+                                }
+                                break;
+                            }
+                            case FIXED_SIZE_STRING_TYPE : {
+                                if (!strncmp(*(char **) searchedField, fieldValue, fixedFieldSize)) {
+                                    printVeiculoRegistry(fileHeader, newRegistry);
+                                    foundRegistries++;
+                                }
+                                break;
+                            }
+                        }
+                        freeVeiculoData(newRegistry);
+                    }
+                }
+                fclose(binFile);
+                if (foundRegistries == 0)
+                    printf("%s\n", REG_NOT_FOUND);
+
+                free(newRegistry);
+                freeVeiculoHeader(&fileHeader);
                 break;
             }
 
@@ -187,7 +290,7 @@ int main(int argc, char *argv[]) {
                                 break;
                             }
                             case STRING_TYPE : {
-                                if (!strncmp(*(char **) searchedField, fieldValue, *fieldSize)) {
+                                if (*fieldSize > 0 && !strncmp(*(char **) searchedField, fieldValue, *fieldSize)) {
                                     printLinhaRegistry(fileHeader, newRegistry, fieldName);
                                     foundRegistries++;
                                 }
@@ -206,9 +309,50 @@ int main(int argc, char *argv[]) {
                 break;
             }
             
-            // Functionality 8: Insert 'n' new registries from stdin on binary file
+            // Functionality 7: Insert 'n' new registries from stdin on binary file
             // Related to: 'Veiculo' type binary files
             case INSERT_VEICULO_CONTENT: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                uint8_t insertNumber = atoi(strsep(&inputLine, LINE_BREAK));
+
+                FILE *binFile = fopen(binaryFilename, "rb+");
+                if (!binFile) {
+                    printf("%s\n", FILE_ERROR);
+                    return 1;
+                }
+
+                VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
+                if (!fileHeader) {
+                    printf("%s\n", FILE_ERROR);
+                    return 1;
+                }
+
+                rewind(binFile);
+                fwrite(INCONSISTENT_FILE, 1, sizeof(char), binFile);
+                fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
+
+                VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
+                for (int i = 0; i < insertNumber; i++) {
+                    char *lineRead = readline(stdin);
+                    tranformToCsvFormat(lineRead);
+                    readVeiculoRegistry(lineRead, newRegistry);
+                    if (newRegistry->isRemoved == REMOVED_REGISTRY)
+                        fileHeader->removedRegNum++;
+                    else
+                        fileHeader->regNumber++;
+
+                    writeVeiculoRegistryOnBinary(binFile, newRegistry);
+                    freeVeiculoData(newRegistry);
+                }
+                free(newRegistry);
+
+                fileHeader->byteNextReg = ftell(binFile);
+                rewind(binFile);
+                writeVeiculoHeaderOnBinary(binFile, fileHeader);
+                fclose(binFile);
+
+                freeVeiculoHeader(&fileHeader);
+                binarioNaTela(binaryFilename);
                 break;
             }
 
