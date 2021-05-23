@@ -360,54 +360,54 @@ void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
             printf("%s\n", NULL_FIELD);
         }
         else {
-            int year, month, day;
+            int year, month;
+
             char *trackReference = registry->date;
             year = atoi(strsep(&registry->date, "-"));
             month = atoi(strsep(&registry->date, "-"));
 
-            char auxString[3];
-            strncpy(auxString, registry->date, 2);
-            auxString[2] = '\0';
-            day = atoi(auxString);
+            char day[3];
+            strncpy(day, registry->date, 2);
+            day[2] = '\0';
             registry->date = trackReference;
             
-            printf("%d de ", day);
+            printf("%s de ", day);
             switch(month) {
                 case 1:
-                    printf("Janeiro");
+                    printf("janeiro");
                     break;
                 case 2:
-                    printf("Fevereiro");
+                    printf("fevereiro");
                     break;
                 case 3:
-                    printf("Março");
+                    printf("março");
                     break;
                 case 4:
-                    printf("Abril");
+                    printf("abril");
                     break;
                 case 5:
-                    printf("Maio");
+                    printf("maio");
                     break;
                 case 6:
-                    printf("Junho");
+                    printf("junho");
                     break;
                 case 7:
-                    printf("Julho");
+                    printf("julho");
                     break;
                 case 8:
-                    printf("Agosto");
+                    printf("agosto");
                     break;
                 case 9:
-                    printf("Setembro");
+                    printf("setembro");
                     break;
                 case 10:
-                    printf("Outubro");
+                    printf("outubro");
                     break;
                 case 11:
-                    printf("Novembro");
+                    printf("novembro");
                     break;
                 case 12:
-                    printf("Dezembro");
+                    printf("dezembro");
                     break;
             }
             printf(" de %d\n", year);

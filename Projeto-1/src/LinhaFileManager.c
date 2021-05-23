@@ -50,7 +50,12 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
                 newData->isRemoved = VALID_REGISTRY;
         
             newData->linhaCode = atoi(strsep(&(lineRead), COMMA_DELIM));
-            newData->cardAcceptance = strsep(&(lineRead), COMMA_DELIM)[0];
+
+            newData->cardAcceptance = CARD_NONE;
+            auxString = strsep(&(lineRead), COMMA_DELIM);
+            if (strcmp(auxString, "NULO")) {
+                newData->cardAcceptance = auxString[0];
+            }
 
             newData->nameSize = 0;
             newData->linhaName = "";

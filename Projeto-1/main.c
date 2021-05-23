@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
                 if (!writeVeiculoBinary(csvFilename, binaryFilename)) {
                     free(trackReference);
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
                 binarioNaTela(binaryFilename);
                 break;
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
                 if (!writeLinhaBinary(csvFilename, binaryFilename)) {
                     free(trackReference);
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
                 binarioNaTela(binaryFilename);
                 break;
@@ -53,12 +53,12 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
                 VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
                 if (fileHeader == NULL || fileHeader->regNumber == 0) {
                     printf("%s\n", REG_NOT_FOUND);
-                    return 1;
+                    return 0;
                 }
                 VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
                 while (loadVeiculoBinaryRegistry(binFile, newRegistry)) {
@@ -80,19 +80,19 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
 
                 LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
                 if (!fileHeader) {
                     fclose(binFile);
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
                     fclose(binFile);
                     printf("%s\n", REG_NOT_FOUND);
-                    return 1;
+                    return 0;
                 }
 
                 LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
@@ -118,17 +118,17 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
 
                 VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
                 if (!fileHeader) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
                 else if (fileHeader == NULL || fileHeader->regNumber == 0) {
                     printf("%s\n", REG_NOT_FOUND);
-                    return 1;
+                    return 0;
                 }
                 
                 VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
@@ -227,17 +227,17 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
 
                 LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
                 if (!fileHeader) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
                     printf("%s\n", REG_NOT_FOUND);
-                    return 1;
+                    return 0;
                 }
                 
                 LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
@@ -277,21 +277,21 @@ int main(int argc, char *argv[]) {
                         switch (fieldType) {
                             case INTEGER_TYPE : {
                                 if (*((int32_t *) searchedField) == atoi(fieldValue)) {
-                                    printLinhaRegistry(fileHeader, newRegistry, fieldName);
+                                    printLinhaRegistry(fileHeader, newRegistry, NONE);
                                     foundRegistries++;
                                 }
                                 break;
                             }
                             case CHAR_TYPE : {
                                 if (*((char *) searchedField) == fieldValue[0]) {
-                                    printLinhaRegistry(fileHeader, newRegistry, fieldName);
+                                    printLinhaRegistry(fileHeader, newRegistry, NONE);
                                     foundRegistries++;
                                 }
                                 break;
                             }
                             case STRING_TYPE : {
                                 if (*fieldSize > 0 && !strncmp(*(char **) searchedField, fieldValue, *fieldSize)) {
-                                    printLinhaRegistry(fileHeader, newRegistry, fieldName);
+                                    printLinhaRegistry(fileHeader, newRegistry, NONE);
                                     foundRegistries++;
                                 }
                                 break;
@@ -318,13 +318,13 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
 
                 VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
                 if (!fileHeader) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
 
                 rewind(binFile);
@@ -364,13 +364,13 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
 
                 LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
                 if (!fileHeader) {
                     printf("%s\n", FILE_ERROR);
-                    return 1;
+                    return 0;
                 }
 
                 rewind(binFile);
