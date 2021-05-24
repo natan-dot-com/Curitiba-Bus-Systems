@@ -60,8 +60,20 @@ bool readVeiculoRegistry(FILE *fpVeiculo, VeiculoData *newData) {
                 strncpy(newData->date, "@@@@@@@@@@", DATE_SIZE);
                 newData->date[0] = '\0';
             }
-            newData->seatsNumber = atoi(strsep(&(stringVeiculo), COMMA_DELIM));
-            newData->linhaCode = atoi(strsep(&(stringVeiculo), COMMA_DELIM));
+
+            auxString = strsep(&stringVeiculo, COMMA_DELIM);
+            if (strcmp(auxString, "NULO")) {
+                newData->seatsNumber = atoi(auxString);
+            } else {
+                newData->seatsNumber = -1;
+            }
+
+            auxString = strsep(&stringVeiculo, COMMA_DELIM);
+            if (strcmp(auxString, "NULO")) {
+                newData->linhaCode = atoi(auxString);
+            } else {
+                newData->linhaCode = -1;
+            }
             
             auxString = strsep(&stringVeiculo, COMMA_DELIM);
             if (strcmp(auxString, "NULO")) {
