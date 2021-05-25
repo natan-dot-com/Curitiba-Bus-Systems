@@ -48,16 +48,18 @@
         char *linhaColor; 
     } LinhaData;
 
-    bool writeLinhaBinary(char *csvFilename, char *binFilename);
     LinhaHeader *loadLinhaBinaryHeader(FILE *binFile);
-    bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData);
-    bool freeLinhaHeader(LinhaHeader **header);
-    void printLinhaHeader(LinhaHeader *header);
-    void linhaPrint(LinhaData *data);
     bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct); 
-    void printLinhaRegistry(LinhaHeader *header, LinhaData *registry, const char *exceptionField);
-    bool writeRegistryOnBinary(FILE *binFile, LinhaData *registryStruct);
+
+    bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData);
+
+    bool freeLinhaHeader(LinhaHeader **header);
     bool freeLinhaData(LinhaData *data);
-    bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct);
+
+    bool writeLinhaBinary(char *csvFilename, char *binFilename);
+    bool writeLinhaRegistryOnBinary(FILE *binFile, LinhaData *registryStruct);
+    bool writeLinhaHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct);
+    void printLinhaHeader(LinhaHeader *header);
+    void printLinhaRegistry(LinhaHeader *header, LinhaData *registry);
 
 #endif 

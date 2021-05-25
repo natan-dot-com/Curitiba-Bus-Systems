@@ -1,3 +1,8 @@
+/*  SCC0215 - Organização de Arquivos (Turma A)
+ *  Grupo 2: Natan Henrique Sanches (11795680) e Lucas Keiti Anbo Mihara (11796472) 
+ *  Projeto Prático I: Leitura e escrita de arquivos binários
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,14 +57,27 @@ int main(int argc, char *argv[]) {
                 char *binaryFilename = strsep(&inputLine, LINE_BREAK);
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
+                    free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
+                
+                // Load file header
                 VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
-                if (fileHeader == NULL || fileHeader->regNumber == 0) {
+                if (!fileHeader) {
+                    fclose(binFile);
+                    free(trackReference);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+                if (fileHeader->regNumber == 0) {
+                    fclose(binFile);
+                    free(trackReference);
                     printf("%s\n", REG_NOT_FOUND);
                     return 0;
                 }
+
+                // Read and displays each registry in screen
                 VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
                 while (loadVeiculoBinaryRegistry(binFile, newRegistry)) {
                     if (newRegistry->isRemoved == VALID_REGISTRY) {
@@ -79,26 +97,31 @@ int main(int argc, char *argv[]) {
                 char *binaryFilename = strsep(&inputLine, LINE_BREAK);
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
+                    free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
 
+                // Load file header
                 LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
                 if (!fileHeader) {
+                    free(trackReference);
                     fclose(binFile);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
+                    free(trackReference);
                     fclose(binFile);
                     printf("%s\n", REG_NOT_FOUND);
                     return 0;
                 }
 
+                // Read and displays each registry in screen
                 LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
                 while (loadLinhaBinaryRegistry(binFile, newRegistry)) {
                     if (newRegistry->isRemoved == VALID_REGISTRY) {
-                        printLinhaRegistry(fileHeader, newRegistry, NONE);
+                        printLinhaRegistry(fileHeader, newRegistry);
                         freeLinhaData(newRegistry);
                     }
                 }
@@ -117,27 +140,34 @@ int main(int argc, char *argv[]) {
 
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
+                    free(trackReference);
+                    fclose(binFile);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
 
+                // Load file header
                 VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
                 if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
-                else if (fileHeader == NULL || fileHeader->regNumber == 0) {
+                else if (fileHeader->regNumber == 0) {
+                    free(trackReference);
+                    fclose(binFile);
                     printf("%s\n", REG_NOT_FOUND);
                     return 0;
                 }
                 
                 VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
 
+                // Select which field is going to be compared in registry struct with a void pointer
                 void *searchedField = NULL;
                 int32_t *fieldSize = NULL;
                 int32_t fixedFieldSize = 0;
                 char fieldType;
-                //prefixo, data, quantidadeLugares, modelo, categoria
                 if (!strcmp(fieldName, "prefixo")) {
                     ++inputLine;
                     fieldValue = strsep(&inputLine, QUOTES_DELIM);
@@ -154,7 +184,7 @@ int main(int argc, char *argv[]) {
                 }
                 else if (!strcmp(fieldName, "quantidadeLugares")) {
                     fieldValue = strsep(&inputLine, LINE_BREAK);
-                    searchedField = (int32_t*) &newRegistry->seatsNumber;
+                    searchedField = (int32_t *) &newRegistry->seatsNumber;
                     fieldType = INTEGER_TYPE;
                 }
                 else if (!strcmp(fieldName, "modelo")) {
@@ -172,6 +202,7 @@ int main(int argc, char *argv[]) {
                     fieldType = STRING_TYPE;
                 }
 
+                // Searches for matches inside file
                 int8_t foundRegistries = 0;
                 while (loadVeiculoBinaryRegistry(binFile, newRegistry)) {
                     if (newRegistry->isRemoved == VALID_REGISTRY) {
@@ -226,22 +257,29 @@ int main(int argc, char *argv[]) {
 
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
+                    free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
 
+                // Load file header
                 LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
                 if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
+                    free(trackReference);
+                    fclose(binFile);
                     printf("%s\n", REG_NOT_FOUND);
                     return 0;
                 }
                 
                 LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
 
+                // Select which field is going to be compared in registry struct with a void pointer
                 void *searchedField = NULL;
                 int32_t *fieldSize = NULL;
                 char fieldType;
@@ -271,27 +309,28 @@ int main(int argc, char *argv[]) {
                     fieldType = STRING_TYPE;
                 }
 
+                // Searches for matches inside file
                 int8_t foundRegistries = 0;
                 while (loadLinhaBinaryRegistry(binFile, newRegistry)) {
                     if (newRegistry->isRemoved == VALID_REGISTRY) {
                         switch (fieldType) {
                             case INTEGER_TYPE : {
                                 if (*((int32_t *) searchedField) == atoi(fieldValue)) {
-                                    printLinhaRegistry(fileHeader, newRegistry, NONE);
+                                    printLinhaRegistry(fileHeader, newRegistry);
                                     foundRegistries++;
                                 }
                                 break;
                             }
                             case CHAR_TYPE : {
                                 if (*((char *) searchedField) == fieldValue[0]) {
-                                    printLinhaRegistry(fileHeader, newRegistry, NONE);
+                                    printLinhaRegistry(fileHeader, newRegistry);
                                     foundRegistries++;
                                 }
                                 break;
                             }
                             case STRING_TYPE : {
                                 if (*fieldSize > 0 && !strncmp(*(char **) searchedField, fieldValue, *fieldSize)) {
-                                    printLinhaRegistry(fileHeader, newRegistry, NONE);
+                                    printLinhaRegistry(fileHeader, newRegistry);
                                     foundRegistries++;
                                 }
                                 break;
@@ -317,23 +356,29 @@ int main(int argc, char *argv[]) {
 
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
+                    free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
 
+                // Loads file header
                 VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
                 if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
 
+                // Signs file as "Inconsistent" ('0')
                 rewind(binFile);
                 fwrite(INCONSISTENT_FILE, 1, sizeof(char), binFile);
                 fflush(binFile);
-                fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
 
+                // Writes each new registry at byteNextReg offset 
+                fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
                 VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
-                for (int i = 0; i < insertNumber; i++) {
+                for (int8_t i = 0; i < insertNumber; i++) {
                     readVeiculoRegistry(stdin, newRegistry);
                     if (newRegistry->isRemoved == REMOVED_REGISTRY)
                         fileHeader->removedRegNum++;
@@ -345,6 +390,8 @@ int main(int argc, char *argv[]) {
                 }
                 free(newRegistry);
 
+                // Refreshes byteNextReg and rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
                 fileHeader->byteNextReg = ftell(binFile);
                 rewind(binFile);
                 writeVeiculoHeaderOnBinary(binFile, fileHeader);
@@ -363,21 +410,27 @@ int main(int argc, char *argv[]) {
 
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
+                    free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
 
+                // Loads file header
                 LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
                 if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
                     printf("%s\n", FILE_ERROR);
                     return 0;
                 }
 
+                // Signs file as "Inconsistent" ('0')
                 rewind(binFile);
                 fwrite(INCONSISTENT_FILE, 1, sizeof(char), binFile);
                 fflush(binFile);
-                fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
 
+                // Writes each new registry at byteNextReg offset
+                fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
                 LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
                 for (uint8_t i = 0; i < insertNumber; i++) {
                     readLinhaRegistry(stdin, newRegistry);
@@ -386,14 +439,16 @@ int main(int argc, char *argv[]) {
                     else
                         fileHeader->regNumber++;
 
-                    writeRegistryOnBinary(binFile, newRegistry);
+                    writeLinhaRegistryOnBinary(binFile, newRegistry);
                     freeLinhaData(newRegistry);
                 }
                 free(newRegistry);
 
+                // Refreshes byteNextReg and rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
                 fileHeader->byteNextReg = ftell(binFile);
                 rewind(binFile);
-                writeHeaderOnBinary(binFile, fileHeader);
+                writeLinhaHeaderOnBinary(binFile, fileHeader);
                 fclose(binFile);
 
                 freeLinhaHeader(&fileHeader);

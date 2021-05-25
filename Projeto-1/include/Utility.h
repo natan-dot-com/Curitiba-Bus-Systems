@@ -44,7 +44,6 @@
     #define INSERT_LINHA_CONTENT '8'
 
     void binarioNaTela(char *nomeArquivoBinario);
-    
     void tranformToCsvFormat(char *inputString);
 
 #endif 

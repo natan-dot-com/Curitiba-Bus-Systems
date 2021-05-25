@@ -31,6 +31,7 @@ static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
 
 // (Global) Parses current CSV file or stdin line to the registry struct passed as parameter
 // In CSV file, strsep delimiter is a comma (COMMA_DELIM)
+// In stdin, the input is formated previously as CSV-like to be easier to read
 // Return value: If everything succeeded (boolean)
 bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
     if (fpLinha) {
@@ -85,7 +86,7 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
 
 // (Global) Writes each header field in sequence to the binary file
 // Return value: If all data were written as expected (boolean)
-bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
+bool writeLinhaHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
     if (binFile && headerStruct) {
         size_t bytesWritten = 0;
 
@@ -109,7 +110,7 @@ bool writeHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
 
 // (Global) Writes each registry field in sequence to the binary file
 // Return value: If all data were written (boolean)
-bool writeRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
+bool writeLinhaRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesWritten = 0;
 
@@ -196,7 +197,7 @@ bool writeLinhaBinary(char *csvFilename, char *binFilename) {
             if (EOFFlag != EOF) {
                 fseek(csvFile, -1, SEEK_CUR);
                 readLinhaRegistry(csvFile, newRegistry);
-                writeRegistryOnBinary(binFile, newRegistry);
+                writeLinhaRegistryOnBinary(binFile, newRegistry);
                 if (newRegistry->isRemoved == REMOVED_REGISTRY)
                     fileHeader->removedRegNum++; 
                 else
@@ -211,7 +212,7 @@ bool writeLinhaBinary(char *csvFilename, char *binFilename) {
         // Signing file as "consistent" (1)
         fileHeader->byteNextReg = (int64_t) ftell(binFile);
         rewind(binFile);
-        writeHeaderOnBinary(binFile, fileHeader);
+        writeLinhaHeaderOnBinary(binFile, fileHeader);
         freeLinhaHeader(&fileHeader);
         fclose(binFile);
         return true;
@@ -307,44 +308,36 @@ bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
 }
 
 // (Global) Shows formated recovered registry information in screen.
-// Exception field is a way to select a field to not be printed (used in functionalities 5 and 6).
-// Return value: Nothing (void)
-void printLinhaRegistry(LinhaHeader *header, LinhaData *registry, const char *exceptionField) {
+// Return value: none (void)
+void printLinhaRegistry(LinhaHeader *header, LinhaData *registry) {
     if (header && registry) {
-        if (strcmp(exceptionField, "codLinha"))
-            printf("%.*s: %d\n", CODE_DESC_SIZE, header->codeDescription, registry->linhaCode);
+        printf("%.*s: %d\n", CODE_DESC_SIZE, header->codeDescription, registry->linhaCode);
 
-        if (strcmp(exceptionField, "nomeLinha")) {
-            printf("%.*s: ", NAME_DESC_SIZE, header->nameDescription);
-            if (registry->nameSize == 0)
-                printf("%s\n", NULL_FIELD);
-            else
-                printf("%.*s\n", registry->nameSize, registry->linhaName);
-        }
+        printf("%.*s: ", NAME_DESC_SIZE, header->nameDescription);
+        if (registry->nameSize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", registry->nameSize, registry->linhaName);
 
-        if (strcmp(exceptionField, "corLinha")) {
-            printf("%.*s: ", COLOR_DESC_SIZE, header->colorDescription);
-            if (registry->colorSize == 0)
-                printf("%s\n", NULL_FIELD);
-            else
-                printf("%.*s\n", registry->colorSize, registry->linhaColor);
-        }
+        printf("%.*s: ", COLOR_DESC_SIZE, header->colorDescription);
+        if (registry->colorSize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", registry->colorSize, registry->linhaColor);
         
-        if (strcmp(exceptionField, "aceitaCartao")) {
-            printf("%.*s: ", CARD_DESC_SIZE, header->cardDescription);
-            switch (registry->cardAcceptance) {
-                case 'S': {
-                    printf("%s\n", CARD_S_MESSAGE);
-                    break;
-                }
-                case 'N': {
-                    printf("%s\n", CARD_N_MESSAGE);
-                    break;
-                }
-                case 'F': {
-                    printf("%s\n", CARD_F_MESSAGE);
-                    break;
-                }
+        printf("%.*s: ", CARD_DESC_SIZE, header->cardDescription);
+        switch (registry->cardAcceptance) {
+            case 'S': {
+                printf("%s\n", CARD_S_MESSAGE);
+                break;
+            }
+            case 'N': {
+                printf("%s\n", CARD_N_MESSAGE);
+                break;
+            }
+            case 'F': {
+                printf("%s\n", CARD_F_MESSAGE);
+                break;
             }
         }
         printf("\n");

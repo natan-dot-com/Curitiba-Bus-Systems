@@ -133,9 +133,10 @@ bool writeVeiculoRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct) {
     if (binFile && registryStruct) {
         size_t bytesWritten = 0;
 
-        // Fixed size fields (15 bytes)
         bytesWritten += fwrite(&registryStruct->isRemoved, sizeof(char), 1, binFile);
         bytesWritten += fwrite(&registryStruct->regSize, sizeof(int32_t), 1, binFile);
+
+        // Fixed size fields (31 bytes)
         bytesWritten += fwrite(registryStruct->prefix, sizeof(char), PREFIX_SIZE, binFile);
         bytesWritten += fwrite(registryStruct->date, sizeof(char), DATE_SIZE, binFile);
         bytesWritten += fwrite(&registryStruct->seatsNumber, sizeof(int32_t), 1, binFile);
@@ -186,7 +187,8 @@ bool freeVeiculoHeader(VeiculoHeader **header) {
 bool freeVeiculoData(VeiculoData *data) {
     if (data) {
         free(data->prefix);
-        free(data->date);
+        if (data->date)
+            free(data->date);
         if (data->modelSize > 0)
             free(data->model);
         if (data->categorySize > 0)
@@ -207,16 +209,19 @@ bool writeVeiculoBinary(char *csvFilename, char *binFilename) {
 
         VeiculoHeader *fileHeader = readVeiculoHeader(csvFile);
         if (!fileHeader) {
+            fclose(csvFile);
             return false;
         }
 
         FILE *binFile = fopen(binFilename, "wb+");
         if (!binFile) {
+            fclose(csvFile);
+            freeVeiculoHeader(&fileHeader);
             return false;
         }
         
         // Writes 175 bytes as a placeholder for the header
-        // Signing file as "inconsistent" (0)
+        // Signing file as "inconsistent" ('0')
         fwrite(INCONSISTENT_FILE, sizeof(char), 1, binFile);
         fwrite("@", sizeof(char), VEICULO_HEADER_SIZE-1, binFile);
         
@@ -240,7 +245,7 @@ bool writeVeiculoBinary(char *csvFilename, char *binFilename) {
         free(newRegistry);
 
         // Rewind into binary file and write the header struct
-        // Signing file as "consistent" (1)
+        // Signing file as "consistent" ('1')
         fileHeader->byteNextReg = (int64_t) ftell(binFile);
         rewind(binFile);
         writeVeiculoHeaderOnBinary(binFile, fileHeader);
@@ -345,12 +350,11 @@ bool loadVeiculoBinaryRegistry(FILE *binFile, VeiculoData *registryStruct) {
         }
         return true;
     }
-    
     return false;
 }
 
 // (Global) Shows formated recovered registry information in screen.
-// Return value: Nothing (void)
+// Return value: None (void)
 void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
     if (header && registry) {
         printf("%.*s: %.*s\n", PREFIX_DESC_SIZE, header->prefixDescription, PREFIX_SIZE, registry->prefix);
@@ -372,6 +376,7 @@ void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
             printf("%s\n", NULL_FIELD);
         }
         else {
+            // Proccess date formatting
             int year, month;
 
             char *trackReference = registry->date;

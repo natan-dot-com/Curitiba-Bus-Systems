@@ -1,10 +1,8 @@
 #include "Utility.h"
 
-void binarioNaTela(char *nomeArquivoBinario) { /* Você não precisa entender o código dessa função. */
-
-	/* Use essa função para comparação no run.codes. Lembre-se de ter fechado (fclose) o arquivo anteriormente.
-	*  Ela vai abrir de novo para leitura e depois fechar (você não vai perder pontos por isso se usar ela). */
-
+// Checks if binary were correctly generated
+// Return value: None (void)
+void binarioNaTela(char *nomeArquivoBinario) {
 	unsigned long i, cs;
 	unsigned char *mb;
 	size_t fl;
@@ -28,6 +26,8 @@ void binarioNaTela(char *nomeArquivoBinario) { /* Você não precisa entender o 
 	fclose(fs);
 }
 
+// Transform input from stdin formatting into CSV-like
+// Return value: None (void)
 void tranformToCsvFormat(char *inputString) {
 	bool isQuote = false;
 	for(int i = 0; inputString[i] != '\0'; i++) {

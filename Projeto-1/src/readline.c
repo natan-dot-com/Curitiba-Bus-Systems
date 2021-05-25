@@ -2,8 +2,8 @@
 
 #define READLINE_BUFFER 1024
 
-// Reads a string until '\n' or end of file
-// - Return value: Read string from stream (char *)
+// Reads a string dynamically until '\n' or end of file
+// Return value: Read string from stream (char *)
 char *readline(FILE *stream) {
     char ch;
     do {
