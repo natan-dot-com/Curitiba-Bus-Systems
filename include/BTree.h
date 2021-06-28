@@ -5,12 +5,15 @@
     #include <stdio.h>
     #include <stdbool.h>
     #include <stdint.h>
+    #include "Utility.h"
 
     #define DISK_PAGE_SIZE 77
     #define BTREE_ORDER 5
+    #define MAX_KEYS 4
 
     // Header liquid size = 9 bytes
     typedef struct _BTreeHeader {
+        FILE *fp;
         char fileStatus;
         int32_t rootNode;
         int32_t nextNodeRRN;
@@ -29,5 +32,8 @@
         int32_t childPointers[5];
         IndexStruct keyValues[4];
     } BTreeNode;
+
+    void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset);
+    BTreeHeader *createBTree(const char *filename);
 
 #endif

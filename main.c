@@ -9,6 +9,7 @@
 #include "LinhaFileManager.h"
 #include "VeiculoFileManager.h"
 #include "Utility.h"
+#include "BTree.h"
 
 // Every general #define is inside Utility.h
 // Every #define related to Linha/Veiculo commands is inside its respective header file
@@ -454,6 +455,37 @@ int main(int argc, char *argv[]) {
                 freeLinhaHeader(&fileHeader);
                 binarioNaTela(binaryFilename);
                 break;
+            }
+
+            case '9': {
+                //test
+                BTreeHeader *bTreeHeader = createBTree("btree.bin");
+                insertOnBTree(bTreeHeader, 9, 9);
+                insertOnBTree(bTreeHeader, 1, 1);
+                insertOnBTree(bTreeHeader, 2, 2);
+                insertOnBTree(bTreeHeader, 4, 4);
+                insertOnBTree(bTreeHeader, 5, 5);
+                insertOnBTree(bTreeHeader, 3, 3);
+                insertOnBTree(bTreeHeader, 10, 10);
+                insertOnBTree(bTreeHeader, 11, 11);
+                insertOnBTree(bTreeHeader, 12, 12);
+                insertOnBTree(bTreeHeader, 50, 50);
+                insertOnBTree(bTreeHeader, 30, 30);
+                insertOnBTree(bTreeHeader, 8, 8);
+                insertOnBTree(bTreeHeader, 7, 7);
+                insertOnBTree(bTreeHeader, 60, 60);
+                insertOnBTree(bTreeHeader, 6, 6);
+                insertOnBTree(bTreeHeader, 13, 13);
+                insertOnBTree(bTreeHeader, 20, 20);
+                insertOnBTree(bTreeHeader, 25, 25);
+                insertOnBTree(bTreeHeader, 31, 31);
+                insertOnBTree(bTreeHeader, 15, 15);
+                insertOnBTree(bTreeHeader, 32, 32);
+                insertOnBTree(bTreeHeader, 54, 54);
+                insertOnBTree(bTreeHeader, 100, 100);
+                insertOnBTree(bTreeHeader, 99, 99);
+                /*
+                */
             }
         }
     }
