@@ -24,7 +24,6 @@ BTreeHeader *createBTree(const char *filename) {
     return NULL;
 }
 
-
 static bool writeNode(FILE *fp, BTreeNode *currNode) {
     if (fp && currNode) {
         fseek(fp, currNode->nodeRRN * DISK_PAGE_SIZE, SEEK_SET);
@@ -94,7 +93,9 @@ static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, 
         node->childPointers[i] = childRRN;
 
         node->keyCounter++;
+        return true;
     }
+    return false;
 }
 
 static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t newKey, int64_t newOffset, int32_t i) {
@@ -130,7 +131,6 @@ static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t 
         }
         currNode->keyCounter = MAX_KEYS/2;
 
-
         free(tempIndex);
         writeNode(fileHeader->fp, currNode);
         writeNode(fileHeader->fp, newNode);
@@ -142,7 +142,7 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
     BTreeNode *currNode = loadNode(fileHeader->fp, regRRN);
     
     for(int i = 0; i <= currNode->keyCounter; i++) {
-        if(i == currNode->keyCounter || newKey < currNode->keyValues[i].key ) {
+        if(i == currNode->keyCounter || newKey < currNode->keyValues[i].key) {
             if(currNode->childPointers[i] != EMPTY) {
                 IndexStruct *promotedIndex = insert(fileHeader, currNode->childPointers[i], newKey, newOffset);
                 if(promotedIndex) {
@@ -163,19 +163,16 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
             } else {
                 insertKeyOnNode(currNode, newKey, newOffset, EMPTY, i);
                 writeNode(fileHeader->fp, currNode);
-
                 return NULL;
             }
-
         }
     }
-    
 }
 
 void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
     if (fileHeader) {
         if (fileHeader->rootNode == EMPTY) {
-            BTreeNode *root = createNode('1');
+            BTreeNode *root = createNode(IS_LEAF);
             root->keyCounter++;
             root->nodeRRN = 1;
             root->keyValues[0].key = newKey;
@@ -189,7 +186,7 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
         } else {
             IndexStruct *promotedIndex = insert(fileHeader, fileHeader->rootNode, newKey, newOffset);
             if(promotedIndex) {
-                BTreeNode *newRoot = createNode('0');
+                BTreeNode *newRoot = createNode(IS_NOT_LEAF);
                 insertKeyOnNode(newRoot, promotedIndex->key, promotedIndex->regOffset, fileHeader->rootNode, 0);
                 newRoot->childPointers[1] = fileHeader->nextNodeRRN - 1;
                 fileHeader->rootNode = fileHeader->nextNodeRRN;
@@ -198,6 +195,5 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
             }
         }
     }
-
 }
 

@@ -11,6 +11,9 @@
     #define BTREE_ORDER 5
     #define MAX_KEYS 4
 
+    #define IS_LEAF '0'
+    #define IS_NOT_LEAF '1'
+
     // Header liquid size = 9 bytes
     typedef struct _BTreeHeader {
         FILE *fp;

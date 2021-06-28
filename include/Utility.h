@@ -33,15 +33,17 @@
     #define STRING_TYPE 'S'
     #define FIXED_SIZE_STRING_TYPE 'F'
 
-    // Commands code identifier
-    #define WRITE_VEICULO_BINARY '1'
-    #define WRITE_LINHA_BINARY '2'
-    #define SHOW_VEICULO_CONTENT '3'
-    #define SHOW_LINHA_CONTENT '4'
-    #define SEARCH_VEICULO_CONTENT '5'
-    #define SEARCH_LINHA_CONTENT '6'
-    #define INSERT_VEICULO_CONTENT '7'
-    #define INSERT_LINHA_CONTENT '8'
+    // Commands code identifier   
+    enum inputCommands {
+        WRITE_VEICULO_BINARY = '1',  
+        WRITE_LINHA_BINARY = '2',  
+        SHOW_VEICULO_CONTENT = '3',  
+        SHOW_LINHA_CONTENT = '4',  
+        SEARCH_VEICULO_CONTENT = '5',  
+        SEARCH_LINHA_CONTENT = '6',  
+        INSERT_VEICULO_CONTENT = '7',  
+        INSERT_LINHA_CONTENT = '8',  
+    };
 
     void binarioNaTela(char *nomeArquivoBinario);
     void tranformToCsvFormat(char *inputString);
