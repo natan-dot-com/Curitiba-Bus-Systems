@@ -35,17 +35,24 @@
 
     // Commands code identifier   
     enum inputCommands {
-        WRITE_VEICULO_BINARY = '1',  
-        WRITE_LINHA_BINARY = '2',  
-        SHOW_VEICULO_CONTENT = '3',  
-        SHOW_LINHA_CONTENT = '4',  
-        SEARCH_VEICULO_CONTENT = '5',  
-        SEARCH_LINHA_CONTENT = '6',  
-        INSERT_VEICULO_CONTENT = '7',  
-        INSERT_LINHA_CONTENT = '8',  
+        WRITE_VEICULO_BINARY = 1,  
+        WRITE_LINHA_BINARY,  
+        SHOW_VEICULO_CONTENT,  
+        SHOW_LINHA_CONTENT,  
+        SEARCH_VEICULO_CONTENT,  
+        SEARCH_LINHA_CONTENT,  
+        INSERT_VEICULO_CONTENT,  
+        INSERT_LINHA_CONTENT,  
+        CREATE_VEICULO_BTREE,
+        CREATE_LINHA_BTREE,
+        SEARCH_VEICULO_PREFIX,
+        SEARCH_LINHA_PREFIX,
+        INSERT_VEICULO_BTREE,
+        INSERT_LINHA_BTREE,
     };
 
     void binarioNaTela(char *nomeArquivoBinario);
     void tranformToCsvFormat(char *inputString);
+    int convertePrefixo(char* str);
 
 #endif 

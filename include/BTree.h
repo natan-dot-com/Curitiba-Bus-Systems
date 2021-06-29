@@ -14,6 +14,8 @@
     #define IS_LEAF '1'
     #define IS_NOT_LEAF '0'
 
+    #define EMPTY -1
+
     // Header liquid size = 9 bytes
     typedef struct _BTreeHeader {
         FILE *fp;
@@ -41,5 +43,7 @@
     void printBTree(BTreeHeader *fileHeader);
     int64_t searchBTree(BTreeHeader *fileHeader, int32_t key);
     void freeBTree(BTreeHeader *fileHeader);
+    void writeBTreeHeader(BTreeHeader *fileHeader);
+    BTreeHeader *openBTree(const char *filename);
 
 #endif

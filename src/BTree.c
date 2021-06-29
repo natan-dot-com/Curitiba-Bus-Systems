@@ -1,6 +1,5 @@
 #include "BTree.h"
 
-#define EMPTY -1
 
 BTreeHeader *createBTree(const char *filename) {
     if (filename != NULL) {
@@ -11,12 +10,15 @@ BTreeHeader *createBTree(const char *filename) {
                 return NULL;
             }
 
+            
             // Skip header
             fwrite(INCONSISTENT_FILE, sizeof(char), 1, newTree->fp);
-
+            
             // placeholder
-            for (int i = 0; i < 76; i++)
+            for(int i = 0; i < DISK_PAGE_SIZE - 1; i++)
                 fwrite("@", sizeof(char), 1, newTree->fp);
+
+            
 
             newTree->fileStatus = CONSISTENT_FILE;
             newTree->nextNodeRRN = 1;
@@ -25,6 +27,32 @@ BTreeHeader *createBTree(const char *filename) {
         return newTree;
     }
     return NULL;
+}
+
+BTreeHeader *openBTree(const char *filename) {
+    if (filename != NULL) {
+        BTreeHeader *fileHeader = (BTreeHeader *) malloc(sizeof(BTreeHeader));
+        
+        fileHeader->fp = fopen(filename, "rb");
+        if(fileHeader->fp != NULL) {
+            fwrite(INCONSISTENT_FILE[0], sizeof(char), 1, fileHeader->fp);
+            fread(&fileHeader->rootNode, sizeof(int32_t), 1, fileHeader->fp);
+            fread(&fileHeader->nextNodeRRN, sizeof(int32_t), 1, fileHeader->fp);
+            fileHeader->fileStatus = CONSISTENT_FILE;
+            
+            return fileHeader;
+        }
+        return NULL;
+    }
+    return NULL;
+}
+
+void writeBTreeHeader(BTreeHeader *fileHeader) {
+    fseek(fileHeader->fp, 0, SEEK_SET);
+
+    fwrite(CONSISTENT_FILE, sizeof(fileHeader), 1, fileHeader->fp);
+    fwrite(fileHeader->rootNode, sizeof(fileHeader), 1, fileHeader->fp);
+    fwrite(fileHeader->nextNodeRRN, sizeof(fileHeader), 1, fileHeader->fp);
 }
 
 void freeBTree(BTreeHeader *fileHeader) {
@@ -262,7 +290,7 @@ static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
             }
         }
     } else {
-        return -1;
+        return EMPTY;
     }
 }
 

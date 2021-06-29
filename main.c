@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
 
     char *inputCommand = strsep(&inputLine, SPACE_DELIM);
     if (inputCommand) {
-        switch(inputCommand[0]) {
+        switch(atoi(inputCommand)) {
 
             // Functionality 1: Writes a binary file from existent CSV file
             // Related to: 'Veiculo' type CSV files
@@ -457,37 +457,179 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
-            case '9': {
-                //test
-                BTreeHeader *bTreeHeader = createBTree("btree.bin");
+            case CREATE_VEICULO_BTREE: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                char *indexFilename = strsep(&inputLine, LINE_BREAK);
                 
-                FILE* fp = fopen("test.txt", "r");
-                int n, key;
-                fscanf(fp, "%d", &n);
-                for(int i = 0; i < n; i++){
-                    fscanf(fp, "%d", &key);
-                    insertOnBTree(bTreeHeader, key, key);
+                FILE *binFile = fopen(binaryFilename, "rb");
+                if (binFile) {
+                    free(trackReference);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
                 }
 
-                fseek(fp, 0, SEEK_SET);
-                fscanf(fp, "%d", &n);
-                int a = 0;
-                for(int i = 0; i < n; i++){
-                    fscanf(fp, "%d", &key);
-                    if(searchBTree(bTreeHeader, key) == key) {
-                        a++;
-                    }
-                    // printf("%ld\n", searchBTree(bTreeHeader, key));
-                }
-                printf("%d\n", a);
+                // Skips file header
+                fseek(binFile, VEICULO_HEADER_SIZE, SEEK_SET);
 
-               printBTree(bTreeHeader);
-               fclose(fp);
-               freeBTree(bTreeHeader);
+                BTreeHeader *newTree = createBTree(indexFilename);
+                VeiculoData *newData = (VeiculoData *) malloc(sizeof *newData);
+                while (loadVeiculoBinaryRegistry(binFile, newData)) {
+                    int convertedPrefix = convertePrefixo(newData->linhaCode);
+                    insertOnBTree(newTree, convertedPrefix, (int64_t) ftell(binFile));
+                }
+                freeVeiculoData(newData);
+                fclose(binFile);
+
+                newTree->nextNodeRRN = ftell(newTree->fp);
+                rewind(newTree->fp);
+                // funcao de escrever o cabeçalho
+                freeBTree(newTree);
+                break;
+            }
+
+            case CREATE_LINHA_BTREE: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                char *indexFilename = strsep(&inputLine, LINE_BREAK);
+                
+                FILE *binFile = fopen(binaryFilename, "rb");
+                if (binFile) {
+                    free(trackReference);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+
+                // Skips file header
+                fseek(binFile, LINHA_HEADER_SIZE, SEEK_SET);
+
+                BTreeHeader *newTree = createBTree(indexFilename);
+                LinhaData *newData = (LinhaData *) malloc(sizeof *newData);
+                while (loadLinhaBinaryRegistry(binFile, newData)) {
+                    int convertedPrefix = convertePrefixo(newData->linhaCode);
+                    insertOnBTree(newTree, convertedPrefix, (int64_t) ftell(binFile));
+                }
+                freeLinhaData(newData);
+                fclose(binFile);
+
+                newTree->nextNodeRRN = ftell(newTree->fp);
+                rewind(newTree->fp);
+                // funcao de escrever o cabeçalho
+                freeBTree(newTree);
+                break;
+            }
+
+            case SEARCH_VEICULO_PREFIX: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                char *indexFilename = strsep(&inputLine, SPACE_DELIM);
+                char *fieldName = strsep(&inputLine, SPACE_DELIM);
+                
+                ++inputLine;
+                char *fieldValue = strsep(&inputLine, QUOTES_DELIM);
+
+                FILE *binFile = fopen(binaryFilename, "rb");
+                if (!binFile) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+
+                // Load file header
+                VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
+                if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+                else if (fileHeader->regNumber == 0) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", REG_NOT_FOUND);
+                    return 0;
+                }
+
+                BTreeHeader *indexHeader = openBTree(indexFilename);
+                int64_t regOffset = searchBTree(indexHeader, convertePrefixo(fieldValue));
+                if (regOffset == EMPTY) {
+                    printf("%s\n", REG_NOT_FOUND);
+                    freeVeiculoHeader(&fileHeader);
+                    free(trackReference);
+                    freeBTree(indexHeader);
+                    fclose(binFile);
+                    return 0;
+                }
+
+                VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
+                fseek(binFile, regOffset, SEEK_SET);
+                loadVeiculoBinaryRegistry(binFile, newRegistry);
+                printVeiculoRegistry(fileHeader, newRegistry);
+
+                fclose(binFile);
+                freeVeiculoHeader(&fileHeader);
+                freeVeiculoData(newRegistry);
+                free(newRegistry);
+
+                freeBTree(indexHeader);
+                break;
+            }
+
+            case SEARCH_LINHA_PREFIX: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                char *indexFilename = strsep(&inputLine, SPACE_DELIM);
+                char *fieldName = strsep(&inputLine, SPACE_DELIM);
+                
+                ++inputLine;
+                char *fieldValue = strsep(&inputLine, QUOTES_DELIM);
+
+                FILE *binFile = fopen(binaryFilename, "rb");
+                if (!binFile) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+
+                // Load file header
+                LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
+                if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+                else if (fileHeader->regNumber == 0) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", REG_NOT_FOUND);
+                    return 0;
+                }
+
+                BTreeHeader *indexHeader = openBTree(indexFilename);
+                int64_t regOffset = searchBTree(indexHeader, convertePrefixo(fieldValue));
+                if (regOffset == EMPTY) {
+                    printf("%s\n", REG_NOT_FOUND);
+                    freeLinhaHeader(&fileHeader);
+                    free(trackReference);
+                    freeBTree(indexHeader);
+                    fclose(binFile);
+                    return 0;
+                }
+
+                LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
+                fseek(binFile, regOffset, SEEK_SET);
+                loadLinhaBinaryRegistry(binFile, newRegistry);
+                printLinhaRegistry(fileHeader, newRegistry);
+
+                fclose(binFile);
+                freeLinhaHeader(&fileHeader);
+                freeLinhaData(newRegistry);
+                free(newRegistry);
+
+                freeBTree(indexHeader);
+                break;
             }
         }
     }
-
     free(trackReference);
     return 0;
 }
