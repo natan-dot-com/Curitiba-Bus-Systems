@@ -11,8 +11,8 @@
     #define BTREE_ORDER 5
     #define MAX_KEYS 4
 
-    #define IS_LEAF '0'
-    #define IS_NOT_LEAF '1'
+    #define IS_LEAF '1'
+    #define IS_NOT_LEAF '0'
 
     // Header liquid size = 9 bytes
     typedef struct _BTreeHeader {
@@ -38,5 +38,8 @@
 
     void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset);
     BTreeHeader *createBTree(const char *filename);
+    void printBTree(BTreeHeader *fileHeader);
+    int64_t searchBTree(BTreeHeader *fileHeader, int32_t key);
+    void freeBTree(BTreeHeader *fileHeader);
 
 #endif

@@ -13,7 +13,10 @@ BTreeHeader *createBTree(const char *filename) {
 
             // Skip header
             fwrite(INCONSISTENT_FILE, sizeof(char), 1, newTree->fp);
-            fwrite("@", DISK_PAGE_SIZE-1, sizeof(char), newTree->fp);
+
+            // placeholder
+            for (int i = 0; i < 76; i++)
+                fwrite("@", sizeof(char), 1, newTree->fp);
 
             newTree->fileStatus = CONSISTENT_FILE;
             newTree->nextNodeRRN = 1;
@@ -22,6 +25,11 @@ BTreeHeader *createBTree(const char *filename) {
         return newTree;
     }
     return NULL;
+}
+
+void freeBTree(BTreeHeader *fileHeader) {
+    fclose(fileHeader->fp);
+    free(fileHeader);
 }
 
 static bool writeNode(FILE *fp, BTreeNode *currNode) {
@@ -81,6 +89,10 @@ static BTreeNode *createNode(char isLeaf) {
     return newNode;
 }
 
+void freeNode(BTreeNode *node) {
+    free(node);
+}
+
 static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, int32_t childRRN, int i) {
     if (node) {
         for(int j = MAX_KEYS - 1; j > i; j--) {
@@ -99,42 +111,67 @@ static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, 
 }
 
 static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t newKey, int64_t newOffset, int32_t i) {
-    IndexStruct *tempIndex = (IndexStruct * )malloc(sizeof(IndexStruct) * (MAX_KEYS+1));
+    IndexStruct *tempIndex = (IndexStruct *) malloc(sizeof(IndexStruct) * (MAX_KEYS+1));
     for(int j = 0, k = 0; j < MAX_KEYS + 1; j++, k++) {
         if(j == i) {
             tempIndex[j].key = newKey; 
             tempIndex[j].regOffset = newOffset;
+
             j++;
         }
         if(k < MAX_KEYS) {
-            tempIndex[j] = currNode->keyValues[k]; 
+            tempIndex[j] = currNode->keyValues[k];
         }
     }
 
-    IndexStruct *promotionIndex = (IndexStruct * )malloc(sizeof(IndexStruct));
+    int32_t *tempPointers = (int *) malloc(sizeof(int) * (BTREE_ORDER + 1));
+    memset(tempPointers, -1, sizeof(int) * (BTREE_ORDER + 1));
+    if(currNode->isLeaf == IS_NOT_LEAF) {
+        for(int j = 0, k = 0; k < BTREE_ORDER; j++, k++) {
+            tempPointers[j] = currNode->childPointers[k];
+            if(j == i) {
+                tempPointers[++j] = fileHeader->nextNodeRRN - 1;
+            }
+        }
+
+    }
+
+    IndexStruct *promotionIndex = (IndexStruct *) malloc(sizeof(IndexStruct));
     promotionIndex->key = tempIndex[MAX_KEYS/2].key;
     promotionIndex->regOffset = tempIndex[MAX_KEYS/2].regOffset;
 
     currNode->keyValues[MAX_KEYS/2].key = EMPTY;
-        currNode->keyValues[MAX_KEYS/2].regOffset = EMPTY;
+    currNode->keyValues[MAX_KEYS/2].regOffset = EMPTY;
     BTreeNode *newNode = createNode(currNode->isLeaf);
     if(newNode) {
         
         newNode->nodeRRN = fileHeader->nextNodeRRN++;
         
         for(int j = MAX_KEYS/2 + 1, k = 0; j < MAX_KEYS + 1; j++, k++) {
-            insertKeyOnNode(newNode, tempIndex[j].key, tempIndex[j].regOffset, currNode->childPointers[j], k);
+            insertKeyOnNode(newNode, tempIndex[j].key, tempIndex[j].regOffset, tempPointers[j], k);
+            currNode->childPointers[j] = EMPTY;
             if(j < MAX_KEYS) {
                 currNode->keyValues[j].key = EMPTY;
                 currNode->keyValues[j].regOffset = EMPTY;
             }
+
+            currNode->keyValues[k].key = tempIndex[k].key;
+            currNode->keyValues[k].regOffset = tempIndex[k].regOffset;
+            currNode->childPointers[k] = tempPointers[k];
         }
+        currNode->childPointers[BTREE_ORDER/2] = tempPointers[BTREE_ORDER/2];
+        newNode->childPointers[BTREE_ORDER/2] = tempPointers[BTREE_ORDER];
+        
         currNode->keyCounter = MAX_KEYS/2;
 
         free(tempIndex);
+        free(tempPointers);
         writeNode(fileHeader->fp, currNode);
         writeNode(fileHeader->fp, newNode);
+        freeNode(newNode);
+        freeNode(currNode);
     }
+    //printf("no promovido: %d\n", promotionIndex->key);
     return promotionIndex;
 }
 
@@ -147,15 +184,21 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
                 IndexStruct *promotedIndex = insert(fileHeader, currNode->childPointers[i], newKey, newOffset);
                 if(promotedIndex) {
                     if(currNode->keyCounter == MAX_KEYS) {
-                        return split(fileHeader, currNode, newKey, newOffset, i);
+                        int32_t promotedKey = promotedIndex->key;
+                        int64_t promotedOffset = promotedIndex->regOffset;
+                        free(promotedIndex);
+                        return split(fileHeader, currNode, promotedKey, promotedOffset, i);
                     } else {
                         insertKeyOnNode(currNode, promotedIndex->key, promotedIndex->regOffset, currNode->childPointers[i], i);
                         currNode->childPointers[i+1] = fileHeader->nextNodeRRN-1;
                         writeNode(fileHeader->fp, currNode);
 
+                        free(promotedIndex);
+                        freeNode(currNode);
                         return NULL;
                     }
                 }
+                freeNode(currNode);
                 return NULL;
             } else if(currNode->keyCounter == MAX_KEYS) {
                 //split
@@ -163,6 +206,8 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
             } else {
                 insertKeyOnNode(currNode, newKey, newOffset, EMPTY, i);
                 writeNode(fileHeader->fp, currNode);
+                
+                freeNode(currNode);
                 return NULL;
             }
         }
@@ -182,6 +227,7 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
             fileHeader->nextNodeRRN++;
 
             writeNode(fileHeader->fp, root);
+            freeNode(root);
             return;
         } else {
             IndexStruct *promotedIndex = insert(fileHeader, fileHeader->rootNode, newKey, newOffset);
@@ -191,9 +237,61 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
                 newRoot->childPointers[1] = fileHeader->nextNodeRRN - 1;
                 fileHeader->rootNode = fileHeader->nextNodeRRN;
                 newRoot->nodeRRN = fileHeader->nextNodeRRN++;
+
+                free(promotedIndex);
                 writeNode(fileHeader->fp, newRoot);
+                freeNode(newRoot);
             }
         }
     }
 }
 
+static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
+    BTreeNode *node = loadNode(fp, RRN);
+    if(node) {
+        for(int i = 0; i <= node->keyCounter; i++) {
+            if(i == node->keyCounter || key < node->keyValues[i].key) {
+                int32_t childRRN = node->childPointers[i];
+                freeNode(node);
+                return search(fp, childRRN, key);
+            }
+            if(node->keyValues[i].key == key) {
+                int64_t offset = node->keyValues[i].regOffset;
+                freeNode(node);
+                return offset;
+            }
+        }
+    } else {
+        return -1;
+    }
+}
+
+int64_t searchBTree(BTreeHeader *fileHeader, int32_t key) {
+    return search(fileHeader->fp, fileHeader->rootNode, key);
+}
+
+static void printBTreeRec(FILE* fp, BTreeHeader *fileHeader, int RRN, int depth) {
+    BTreeNode *node = loadNode(fileHeader->fp, RRN);
+    for(int i = 0; i < depth; i++) {
+        fprintf(fp, "\t");
+        
+    }
+    fprintf(fp, "RRN: %d -> ", node->nodeRRN);
+    for(int i = 0; i < node->keyCounter; i++) {
+        //fprintf(fp, "%d: %ld | ", node->keyValues[i].key, node->keyValues[i].regOffset);
+        fprintf(fp, "%d | ", node->keyValues[i].key);
+    }
+    fprintf(fp,"\n");
+    if(node->isLeaf == IS_NOT_LEAF) {
+        for(int i = 0; i <= node->keyCounter; i++) {
+            printBTreeRec(fp, fileHeader, node->childPointers[i], depth+1);
+        }
+    }
+    freeNode(node);
+}
+
+void printBTree(BTreeHeader *fileHeader) {
+    FILE *fp = fopen("btreeOut.txt", "w");
+    printBTreeRec(fp, fileHeader, fileHeader->rootNode, 0);
+    fclose(fp);
+}
