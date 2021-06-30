@@ -480,7 +480,7 @@ int main(int argc, char *argv[]) {
                 while (loadVeiculoBinaryRegistry(binFile, newData)) {
                     if (newData->isRemoved != REMOVED_REGISTRY) {
                         int convertedPrefix = convertePrefixo(newData->prefix);
-                        int64_t byteOffset = ftell(binFile)-newData->regSize-REG_EXTRA_SIZE;
+                        int64_t byteOffset = ftell(binFile) - newData->regSize - REG_EXTRA_SIZE;
                         insertOnBTree(newTree, convertedPrefix, byteOffset);
                     }
                 }
@@ -518,7 +518,7 @@ int main(int argc, char *argv[]) {
                 LinhaData *newData = (LinhaData *) malloc(sizeof *newData);
                 while (loadLinhaBinaryRegistry(binFile, newData)) {
                     if (newData->isRemoved != REMOVED_REGISTRY) {
-                        int64_t byteOffset = ftell(binFile)-newData->regSize-REG_EXTRA_SIZE;
+                        int64_t byteOffset = ftell(binFile) - newData->regSize - REG_EXTRA_SIZE;
                         insertOnBTree(newTree, newData->linhaCode, byteOffset);
                     }
                 }
@@ -720,12 +720,12 @@ int main(int argc, char *argv[]) {
                     readVeiculoRegistry(stdin, newRegistry);
                     if (newRegistry->isRemoved == REMOVED_REGISTRY)
                         fileHeader->removedRegNum++;
-                    else
+                    else {
                         fileHeader->regNumber++;
+                        insertOnBTree(indexHeader, convertePrefixo(newRegistry->prefix), ftell(binFile));
+                    }
 
                     writeVeiculoRegistryOnBinary(binFile, newRegistry);
-                    if (newRegistry->isRemoved != REMOVED_REGISTRY)
-                        insertOnBTree(indexHeader, convertePrefixo(newRegistry->prefix), (int64_t) ftell(binFile));
                     freeVeiculoData(newRegistry);
                 }
                 free(newRegistry);
@@ -798,13 +798,12 @@ int main(int argc, char *argv[]) {
                     readLinhaRegistry(stdin, newRegistry);
                     if (newRegistry->isRemoved == REMOVED_REGISTRY)
                         fileHeader->removedRegNum++;
-                    else
+                    else {
                         fileHeader->regNumber++;
-
+                        insertOnBTree(indexHeader, newRegistry->linhaCode, ftell(binFile));
+                    }
 
                     writeLinhaRegistryOnBinary(binFile, newRegistry);
-                    if (newRegistry->isRemoved != REMOVED_REGISTRY)
-                        insertOnBTree(indexHeader, newRegistry->linhaCode, (int64_t) ftell(binFile));
                     freeLinhaData(newRegistry);
                 }
                 free(newRegistry);
