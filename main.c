@@ -1,6 +1,6 @@
 /*  SCC0215 - Organização de Arquivos (Turma A)
  *  Grupo 2: Natan Henrique Sanches (11795680) e Lucas Keiti Anbo Mihara (11796472) 
- *  Projeto Prático I: Leitura e escrita de arquivos binários
+ *  Projeto Prático II: Implementação e otimização de busca em disco (Árvore B)
 */
 
 #include <stdio.h>
@@ -457,6 +457,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            // Functionality 9: Creates a B-Tree index file based on binary registry file
+            // Related to: 'Veiculo' type binary files
             case CREATE_VEICULO_BTREE: {
                 char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
                 char *indexFilename = strsep(&inputLine, LINE_BREAK);
@@ -495,6 +497,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            // Functionality 10: Creates a B-Tree index file based on binary registry file
+            // Related to: 'Linha' type binary files
             case CREATE_LINHA_BTREE: {
                 char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
                 char *indexFilename = strsep(&inputLine, LINE_BREAK);
@@ -531,6 +535,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            // Functionality 11: Searches for a registry based on its prefix (optimized search)
+            // Related to: 'Veiculo' type binary files
             case SEARCH_VEICULO_PREFIX: {
                 char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
                 char *indexFilename = strsep(&inputLine, SPACE_DELIM);
@@ -597,6 +603,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            // Functionality 12: Searches for a registry based on its prefix (optimized search)
+            // Related to: 'Linha' type binary files
             case SEARCH_LINHA_PREFIX: {
                 char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
                 char *indexFilename = strsep(&inputLine, SPACE_DELIM);
@@ -662,6 +670,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            // Functionality 13: Insert 'n' new registries from stdin on binary and index files
+            // Related to: 'Veiculo' type binary files
             case INSERT_VEICULO_BTREE: {
                 char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
                 char *indexFilename = strsep(&inputLine, SPACE_DELIM);
@@ -738,6 +748,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            // Functionality 14: Insert 'n' new registries from stdin on binary and index files
+            // Related to: 'Linha' type binary files
             case INSERT_LINHA_BTREE: {
                 char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
                 char *indexFilename = strsep(&inputLine, SPACE_DELIM);
@@ -797,14 +809,14 @@ int main(int argc, char *argv[]) {
                 }
                 free(newRegistry);
 
-                // Refreshes byteNextReg and rewrites the refreshed header
+                // Refreshes byteNextReg and rewrites the refreshed header of binary file
                 // Signs file as "Consistent" ('1')
                 fileHeader->byteNextReg = ftell(binFile);
                 rewind(binFile);
                 writeLinhaHeaderOnBinary(binFile, fileHeader);
                 fclose(binFile);
 
-                // Rewrites the refreshed header
+                // Rewrites the refreshed header of index file
                 // Signs file as "Consistent" ('1')
                 rewind(indexHeader->fp);
                 writeBTreeHeader(indexHeader);
@@ -814,11 +826,6 @@ int main(int argc, char *argv[]) {
                 binarioNaTela(binaryFilename);
                 break;
             }
-            case 99: {
-                char *test = strsep(&inputLine, LINE_BREAK);
-                binarioNaTela(test);
-            }
-
         }
     }
     free(trackReference);
