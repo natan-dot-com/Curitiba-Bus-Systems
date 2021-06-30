@@ -1,6 +1,5 @@
 #include "BTree.h"
 
-
 BTreeHeader *createBTree(const char *filename) {
     if (filename != NULL) {
         BTreeHeader *newTree = (BTreeHeader *) malloc(sizeof(BTreeHeader));
@@ -10,23 +9,29 @@ BTreeHeader *createBTree(const char *filename) {
                 return NULL;
             }
 
-            
             // Skip header
             fwrite(INCONSISTENT_FILE, sizeof(char), 1, newTree->fp);
-            
             // placeholder
             for(int i = 0; i < DISK_PAGE_SIZE - 1; i++)
                 fwrite("@", sizeof(char), 1, newTree->fp);
 
-            
-
             newTree->fileStatus = CONSISTENT_FILE;
-            newTree->nextNodeRRN = 1;
+            newTree->nextNodeRRN = 0;
             newTree->rootNode = EMPTY;
         }
         return newTree;
     }
     return NULL;
+}
+
+bool writeBTreeHeader(BTreeHeader *fileHeader) {
+    if (fileHeader) {
+        fwrite(&fileHeader->fileStatus, sizeof(char), 1, fileHeader->fp);
+        fwrite(&fileHeader->rootNode, sizeof(int32_t), 1, fileHeader->fp);
+        fwrite(&fileHeader->nextNodeRRN, sizeof(int32_t), 1, fileHeader->fp);
+        return true;
+    }
+    return false;
 }
 
 BTreeHeader *openBTree(const char *filename) {
@@ -35,7 +40,7 @@ BTreeHeader *openBTree(const char *filename) {
         
         fileHeader->fp = fopen(filename, "rb");
         if(fileHeader->fp != NULL) {
-            fwrite(INCONSISTENT_FILE[0], sizeof(char), 1, fileHeader->fp);
+            fwrite(&INCONSISTENT_FILE[0], sizeof(char), 1, fileHeader->fp);
             fread(&fileHeader->rootNode, sizeof(int32_t), 1, fileHeader->fp);
             fread(&fileHeader->nextNodeRRN, sizeof(int32_t), 1, fileHeader->fp);
             fileHeader->fileStatus = CONSISTENT_FILE;
@@ -47,22 +52,16 @@ BTreeHeader *openBTree(const char *filename) {
     return NULL;
 }
 
-void writeBTreeHeader(BTreeHeader *fileHeader) {
-    fseek(fileHeader->fp, 0, SEEK_SET);
-
-    fwrite(CONSISTENT_FILE, sizeof(fileHeader), 1, fileHeader->fp);
-    fwrite(fileHeader->rootNode, sizeof(fileHeader), 1, fileHeader->fp);
-    fwrite(fileHeader->nextNodeRRN, sizeof(fileHeader), 1, fileHeader->fp);
-}
-
 void freeBTree(BTreeHeader *fileHeader) {
-    fclose(fileHeader->fp);
-    free(fileHeader);
+    if (fileHeader) {
+        fclose(fileHeader->fp);
+        free(fileHeader);
+    }
 }
 
 static bool writeNode(FILE *fp, BTreeNode *currNode) {
     if (fp && currNode) {
-        fseek(fp, currNode->nodeRRN * DISK_PAGE_SIZE, SEEK_SET);
+        fseek(fp, (currNode->nodeRRN + 1) * DISK_PAGE_SIZE, SEEK_SET);
         
         fwrite(&currNode->isLeaf, sizeof(char), 1, fp);
         fwrite(&currNode->keyCounter, sizeof(int32_t), 1, fp);
@@ -80,7 +79,7 @@ static bool writeNode(FILE *fp, BTreeNode *currNode) {
 
 static BTreeNode *loadNode(FILE *fp, int32_t regRRN) {
     if (fp) {
-        fseek(fp, regRRN * DISK_PAGE_SIZE , SEEK_SET);
+        fseek(fp, (regRRN + 1) * DISK_PAGE_SIZE , SEEK_SET);
 
         BTreeNode *node = (BTreeNode *) malloc(sizeof(BTreeNode));
         if (node) {
@@ -117,8 +116,9 @@ static BTreeNode *createNode(char isLeaf) {
     return newNode;
 }
 
-void freeNode(BTreeNode *node) {
-    free(node);
+static void freeNode(BTreeNode *node) {
+    if (node)
+        free(node);
 }
 
 static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, int32_t childRRN, int i) {
@@ -247,7 +247,7 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
         if (fileHeader->rootNode == EMPTY) {
             BTreeNode *root = createNode(IS_LEAF);
             root->keyCounter++;
-            root->nodeRRN = 1;
+            root->nodeRRN = 0;
             root->keyValues[0].key = newKey;
             root->keyValues[0].regOffset = newOffset; 
 

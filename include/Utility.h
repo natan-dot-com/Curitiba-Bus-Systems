@@ -33,6 +33,9 @@
     #define STRING_TYPE 'S'
     #define FIXED_SIZE_STRING_TYPE 'F'
 
+    // Registry extra size considering 'isRemoved' and 'regSize' fields
+    #define REG_EXTRA_SIZE 5
+
     // Commands code identifier   
     enum inputCommands {
         WRITE_VEICULO_BINARY = 1,  

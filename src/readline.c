@@ -9,21 +9,19 @@ char *readline(FILE *stream) {
     do {
         ch = fgetc(stream);
     } while (ch == '\n');
+    ungetc(ch, stdin);
 
     char *string = NULL;
     int pos = 0;
     do {
-        if (pos != 0) 
-            ch = fgetc(stream);
-        if (ch != '\r' && ch != '\n') {
+        ch = fgetc(stream);
+        if (ch != '\r' && ch != '\n' && ch != EOF) {
             if (pos % READLINE_BUFFER == 0) {
                 string = (char *) realloc(string, 1+(pos/READLINE_BUFFER + 1)*READLINE_BUFFER);
             }
             string[pos++] = ch;
         }
     } while (ch != '\n' && ch != EOF);
-    if (pos == 0)
-        return NULL;
     string[pos] = '\0';
     string = (char *) realloc(string, pos+1);
     return string;

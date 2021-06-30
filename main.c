@@ -461,8 +461,9 @@ int main(int argc, char *argv[]) {
                 char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
                 char *indexFilename = strsep(&inputLine, LINE_BREAK);
                 
+                
                 FILE *binFile = fopen(binaryFilename, "rb");
-                if (binFile) {
+                if (!binFile) {
                     free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
@@ -471,19 +472,26 @@ int main(int argc, char *argv[]) {
                 // Skips file header
                 fseek(binFile, VEICULO_HEADER_SIZE, SEEK_SET);
 
+                // Inserts each registry into the B-Tree
                 BTreeHeader *newTree = createBTree(indexFilename);
                 VeiculoData *newData = (VeiculoData *) malloc(sizeof *newData);
                 while (loadVeiculoBinaryRegistry(binFile, newData)) {
-                    int convertedPrefix = convertePrefixo(newData->linhaCode);
-                    insertOnBTree(newTree, convertedPrefix, (int64_t) ftell(binFile));
+                    if (newData->isRemoved != REMOVED_REGISTRY) {
+                        int convertedPrefix = convertePrefixo(newData->prefix);
+                        int64_t byteOffset = ftell(binFile)-newData->regSize-REG_EXTRA_SIZE;
+                        insertOnBTree(newTree, convertedPrefix, byteOffset);
+                    }
                 }
                 freeVeiculoData(newData);
                 fclose(binFile);
 
-                newTree->nextNodeRRN = ftell(newTree->fp);
+                // Rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
                 rewind(newTree->fp);
-                // funcao de escrever o cabeçalho
+                writeBTreeHeader(newTree);
+
                 freeBTree(newTree);
+                binarioNaTela(indexFilename);
                 break;
             }
 
@@ -492,7 +500,7 @@ int main(int argc, char *argv[]) {
                 char *indexFilename = strsep(&inputLine, LINE_BREAK);
                 
                 FILE *binFile = fopen(binaryFilename, "rb");
-                if (binFile) {
+                if (!binFile) {
                     free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
@@ -501,19 +509,25 @@ int main(int argc, char *argv[]) {
                 // Skips file header
                 fseek(binFile, LINHA_HEADER_SIZE, SEEK_SET);
 
+                // Inserts each registry into the B-Tree
                 BTreeHeader *newTree = createBTree(indexFilename);
                 LinhaData *newData = (LinhaData *) malloc(sizeof *newData);
                 while (loadLinhaBinaryRegistry(binFile, newData)) {
-                    int convertedPrefix = convertePrefixo(newData->linhaCode);
-                    insertOnBTree(newTree, convertedPrefix, (int64_t) ftell(binFile));
+                    if (newData->isRemoved != REMOVED_REGISTRY) {
+                        int64_t byteOffset = ftell(binFile)-newData->regSize-REG_EXTRA_SIZE;
+                        insertOnBTree(newTree, newData->linhaCode, byteOffset);
+                    }
                 }
                 freeLinhaData(newData);
                 fclose(binFile);
 
-                newTree->nextNodeRRN = ftell(newTree->fp);
+                // Rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
                 rewind(newTree->fp);
-                // funcao de escrever o cabeçalho
+                writeBTreeHeader(newTree);
+
                 freeBTree(newTree);
+                binarioNaTela(indexFilename);
                 break;
             }
 
@@ -548,7 +562,16 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
+                // Load B-Tree file header
                 BTreeHeader *indexHeader = openBTree(indexFilename);
+                if (!indexHeader) {
+                    printf("%s\n", FILE_ERROR);
+                    freeVeiculoHeader(&fileHeader);
+                    free(trackReference);
+                    fclose(binFile);
+                    return 0;
+                }
+
                 int64_t regOffset = searchBTree(indexHeader, convertePrefixo(fieldValue));
                 if (regOffset == EMPTY) {
                     printf("%s\n", REG_NOT_FOUND);
@@ -559,6 +582,7 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
+                // Loads found registry and print it
                 VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
                 fseek(binFile, regOffset, SEEK_SET);
                 loadVeiculoBinaryRegistry(binFile, newRegistry);
@@ -578,8 +602,7 @@ int main(int argc, char *argv[]) {
                 char *indexFilename = strsep(&inputLine, SPACE_DELIM);
                 char *fieldName = strsep(&inputLine, SPACE_DELIM);
                 
-                ++inputLine;
-                char *fieldValue = strsep(&inputLine, QUOTES_DELIM);
+                int32_t fieldValue = atoi(strsep(&inputLine, QUOTES_DELIM));
 
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
@@ -589,7 +612,7 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
-                // Load file header
+                // Load Linha file header
                 LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
                 if (!fileHeader) {
                     free(trackReference);
@@ -604,8 +627,17 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
+                // Load B-Tree file header
                 BTreeHeader *indexHeader = openBTree(indexFilename);
-                int64_t regOffset = searchBTree(indexHeader, convertePrefixo(fieldValue));
+                if (!indexHeader) {
+                    printf("%s\n", FILE_ERROR);
+                    freeLinhaHeader(&fileHeader);
+                    free(trackReference);
+                    fclose(binFile);
+                    return 0;
+                }
+
+                int64_t regOffset = searchBTree(indexHeader, fieldValue);
                 if (regOffset == EMPTY) {
                     printf("%s\n", REG_NOT_FOUND);
                     freeLinhaHeader(&fileHeader);
@@ -615,6 +647,7 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
+                // Loads found registry and print it
                 LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
                 fseek(binFile, regOffset, SEEK_SET);
                 loadLinhaBinaryRegistry(binFile, newRegistry);
@@ -628,6 +661,164 @@ int main(int argc, char *argv[]) {
                 freeBTree(indexHeader);
                 break;
             }
+
+            case INSERT_VEICULO_BTREE: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                char *indexFilename = strsep(&inputLine, SPACE_DELIM);
+                uint8_t insertNumber = atoi(strsep(&inputLine, LINE_BREAK));
+
+                FILE *binFile = fopen(binaryFilename, "rb+");
+                if (!binFile) {
+                    free(trackReference);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+
+                // Loads file header
+                VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
+                if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+
+                // Loads B-Tree header
+                BTreeHeader *indexHeader = openBTree(indexFilename);
+                if (!indexHeader) {
+                    printf("%s\n", FILE_ERROR);
+                    freeVeiculoHeader(&fileHeader);
+                    free(trackReference);
+                    fclose(binFile);
+                    return 0;
+                }
+
+                // Signs Linha file as "Inconsistent" ('0')
+                rewind(binFile);
+                fwrite(INCONSISTENT_FILE, 1, sizeof(char), binFile);
+                fflush(binFile);
+
+                // Signs B-Tree file as "Inconsistent" ('0')
+                rewind(indexHeader->fp);
+                fwrite(INCONSISTENT_FILE, 1, sizeof(char), indexHeader->fp);
+                fflush(indexHeader->fp);
+
+                // Writes each new registry at byteNextReg offset 
+                fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
+                VeiculoData *newRegistry = (VeiculoData *) malloc(sizeof *newRegistry);
+                for (int8_t i = 0; i < insertNumber; i++) {
+                    readVeiculoRegistry(stdin, newRegistry);
+                    if (newRegistry->isRemoved == REMOVED_REGISTRY)
+                        fileHeader->removedRegNum++;
+                    else
+                        fileHeader->regNumber++;
+
+                    writeVeiculoRegistryOnBinary(binFile, newRegistry);
+                    if (newRegistry->isRemoved != REMOVED_REGISTRY)
+                        insertOnBTree(indexHeader, convertePrefixo(newRegistry->prefix), (int64_t) ftell(binFile));
+                    freeVeiculoData(newRegistry);
+                }
+                free(newRegistry);
+
+                // Refreshes byteNextReg and rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
+                fileHeader->byteNextReg = ftell(binFile);
+                rewind(binFile);
+                writeVeiculoHeaderOnBinary(binFile, fileHeader);
+                fclose(binFile);
+
+                // Rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
+                rewind(indexHeader->fp);
+                writeBTreeHeader(indexHeader);
+                freeBTree(indexHeader);
+
+                freeVeiculoHeader(&fileHeader);
+                binarioNaTela(binaryFilename);
+                break;
+            }
+
+            case INSERT_LINHA_BTREE: {
+                char *binaryFilename = strsep(&inputLine, SPACE_DELIM);
+                char *indexFilename = strsep(&inputLine, SPACE_DELIM);
+                uint8_t insertNumber = atoi(strsep(&inputLine, LINE_BREAK));
+
+                FILE *binFile = fopen(binaryFilename, "rb+");
+                if (!binFile) {
+                    free(trackReference);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+
+                // Loads file header
+                LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
+                if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+
+                // Loads B-Tree file header
+                BTreeHeader *indexHeader = openBTree(indexFilename);
+                if (!indexHeader) {
+                    printf("%s\n", FILE_ERROR);
+                    freeLinhaHeader(&fileHeader);
+                    free(trackReference);
+                    fclose(binFile);
+                    return 0;
+                }
+
+                // Signs Linha file as "Inconsistent" ('0')
+                rewind(binFile);
+                fwrite(INCONSISTENT_FILE, 1, sizeof(char), binFile);
+                fflush(binFile);
+
+                // Signs B-Tree file as "Inconsistent" ('0')
+                rewind(indexHeader->fp);
+                fwrite(INCONSISTENT_FILE, 1, sizeof(char), indexHeader->fp);
+                fflush(indexHeader->fp);
+
+                // Writes each new registry at byteNextReg offset 
+                fseek(binFile, fileHeader->byteNextReg, SEEK_SET);
+                LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
+                for (int8_t i = 0; i < insertNumber; i++) {
+                    readLinhaRegistry(stdin, newRegistry);
+                    if (newRegistry->isRemoved == REMOVED_REGISTRY)
+                        fileHeader->removedRegNum++;
+                    else
+                        fileHeader->regNumber++;
+
+
+                    writeLinhaRegistryOnBinary(binFile, newRegistry);
+                    if (newRegistry->isRemoved != REMOVED_REGISTRY)
+                        insertOnBTree(indexHeader, newRegistry->linhaCode, (int64_t) ftell(binFile));
+                    freeLinhaData(newRegistry);
+                }
+                free(newRegistry);
+
+                // Refreshes byteNextReg and rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
+                fileHeader->byteNextReg = ftell(binFile);
+                rewind(binFile);
+                writeLinhaHeaderOnBinary(binFile, fileHeader);
+                fclose(binFile);
+
+                // Rewrites the refreshed header
+                // Signs file as "Consistent" ('1')
+                rewind(indexHeader->fp);
+                writeBTreeHeader(indexHeader);
+                freeBTree(indexHeader);
+
+                freeLinhaHeader(&fileHeader);
+                binarioNaTela(binaryFilename);
+                break;
+            }
+            case 99: {
+                char *test = strsep(&inputLine, LINE_BREAK);
+                binarioNaTela(test);
+            }
+
         }
     }
     free(trackReference);

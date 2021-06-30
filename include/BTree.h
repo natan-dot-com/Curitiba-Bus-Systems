@@ -43,7 +43,7 @@
     void printBTree(BTreeHeader *fileHeader);
     int64_t searchBTree(BTreeHeader *fileHeader, int32_t key);
     void freeBTree(BTreeHeader *fileHeader);
-    void writeBTreeHeader(BTreeHeader *fileHeader);
     BTreeHeader *openBTree(const char *filename);
+    bool writeBTreeHeader(BTreeHeader *fileHeader);
 
 #endif
