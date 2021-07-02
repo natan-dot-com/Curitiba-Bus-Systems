@@ -471,8 +471,20 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
-                // Skips file header
-                fseek(binFile, VEICULO_HEADER_SIZE, SEEK_SET);
+                // Load Veiculo file header
+                VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
+                if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+                else if (fileHeader->regNumber == 0) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", REG_NOT_FOUND);
+                    return 0;
+                }
 
                 // Inserts each registry into the B-Tree
                 BTreeHeader *newTree = createBTree(indexFilename);
@@ -482,9 +494,11 @@ int main(int argc, char *argv[]) {
                         int convertedPrefix = convertePrefixo(newData->prefix);
                         int64_t byteOffset = ftell(binFile) - newData->regSize - REG_EXTRA_SIZE;
                         insertOnBTree(newTree, convertedPrefix, byteOffset);
+                        freeVeiculoData(newData);
                     }
                 }
-                freeVeiculoData(newData);
+                free(newData);
+                freeVeiculoHeader(&fileHeader);
                 fclose(binFile);
 
                 // Rewrites the refreshed header
@@ -510,8 +524,20 @@ int main(int argc, char *argv[]) {
                     return 0;
                 }
 
-                // Skips file header
-                fseek(binFile, LINHA_HEADER_SIZE, SEEK_SET);
+                // Load Linha file header
+                LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
+                if (!fileHeader) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+                else if (fileHeader->regNumber == 0) {
+                    free(trackReference);
+                    fclose(binFile);
+                    printf("%s\n", REG_NOT_FOUND);
+                    return 0;
+                }
 
                 // Inserts each registry into the B-Tree
                 BTreeHeader *newTree = createBTree(indexFilename);
@@ -520,9 +546,11 @@ int main(int argc, char *argv[]) {
                     if (newData->isRemoved != REMOVED_REGISTRY) {
                         int64_t byteOffset = ftell(binFile) - newData->regSize - REG_EXTRA_SIZE;
                         insertOnBTree(newTree, newData->linhaCode, byteOffset);
+                        freeLinhaData(newData);
                     }
                 }
-                freeLinhaData(newData);
+                free(newData);
+                freeLinhaHeader(&fileHeader);
                 fclose(binFile);
 
                 // Rewrites the refreshed header
@@ -573,6 +601,7 @@ int main(int argc, char *argv[]) {
                 if (!indexHeader) {
                     printf("%s\n", FILE_ERROR);
                     freeVeiculoHeader(&fileHeader);
+                    freeBTree(indexHeader);
                     free(trackReference);
                     fclose(binFile);
                     return 0;
@@ -639,6 +668,7 @@ int main(int argc, char *argv[]) {
                 BTreeHeader *indexHeader = openBTree(indexFilename);
                 if (!indexHeader) {
                     printf("%s\n", FILE_ERROR);
+                    freeBTree(indexHeader);
                     freeLinhaHeader(&fileHeader);
                     free(trackReference);
                     fclose(binFile);
@@ -697,6 +727,7 @@ int main(int argc, char *argv[]) {
                 BTreeHeader *indexHeader = openBTree(indexFilename);
                 if (!indexHeader) {
                     printf("%s\n", FILE_ERROR);
+                    freeBTree(indexHeader);
                     freeVeiculoHeader(&fileHeader);
                     free(trackReference);
                     fclose(binFile);
@@ -744,7 +775,7 @@ int main(int argc, char *argv[]) {
                 freeBTree(indexHeader);
 
                 freeVeiculoHeader(&fileHeader);
-                binarioNaTela(binaryFilename);
+                binarioNaTela(indexFilename);
                 break;
             }
 
@@ -775,6 +806,7 @@ int main(int argc, char *argv[]) {
                 BTreeHeader *indexHeader = openBTree(indexFilename);
                 if (!indexHeader) {
                     printf("%s\n", FILE_ERROR);
+                    freeBTree(indexHeader);
                     freeLinhaHeader(&fileHeader);
                     free(trackReference);
                     fclose(binFile);
@@ -822,7 +854,7 @@ int main(int argc, char *argv[]) {
                 freeBTree(indexHeader);
 
                 freeLinhaHeader(&fileHeader);
-                binarioNaTela(binaryFilename);
+                binarioNaTela(indexFilename);
                 break;
             }
         }

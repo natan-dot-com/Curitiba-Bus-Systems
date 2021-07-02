@@ -7,6 +7,7 @@
     #include <stdint.h>
     #include "Utility.h"
 
+    // B-Tree definition constants
     #define DISK_PAGE_SIZE 77
     #define BTREE_ORDER 5
     #define MAX_KEYS 4
@@ -17,6 +18,7 @@
     #define EMPTY -1
 
     // Header liquid size = 9 bytes
+    #define BTREE_HEADER_SIZE 9
     typedef struct _BTreeHeader {
         FILE *fp;
         char fileStatus;
@@ -38,12 +40,13 @@
         IndexStruct keyValues[4];
     } BTreeNode;
 
-    void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset);
     BTreeHeader *createBTree(const char *filename);
-    void printBTree(BTreeHeader *fileHeader);
-    int64_t searchBTree(BTreeHeader *fileHeader, int32_t key);
-    void freeBTree(BTreeHeader *fileHeader);
     BTreeHeader *openBTree(const char *filename);
+
+    void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset);
+    int64_t searchBTree(BTreeHeader *fileHeader, int32_t key);
+    
     bool writeBTreeHeader(BTreeHeader *fileHeader);
+    void freeBTree(BTreeHeader *fileHeader);
 
 #endif

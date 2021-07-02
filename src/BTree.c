@@ -1,6 +1,18 @@
 #include "BTree.h"
 
+// (Global) Frees current loaded B-Tree struct.
+// Return value: none (void)
+void freeBTree(BTreeHeader *fileHeader) {
+    if (fileHeader) {
+        fclose(fileHeader->fp);
+        free(fileHeader);
+    }
+}
+
+// (Global) Creates a B-Tree header from scratch based on given file name
+// Return value: A pointer to the header struct of the given file (BTreeHeader *)
 BTreeHeader *createBTree(const char *filename) {
+    size_t bytesWritten = 0;
     if (filename != NULL) {
         BTreeHeader *newTree = (BTreeHeader *) malloc(sizeof(BTreeHeader));
         if (newTree) {
@@ -10,10 +22,14 @@ BTreeHeader *createBTree(const char *filename) {
             }
 
             // Skip header
-            fwrite(INCONSISTENT_FILE, sizeof(char), 1, newTree->fp);
-            // placeholder
-            for(int i = 0; i < DISK_PAGE_SIZE - 1; i++)
-                fwrite("@", sizeof(char), 1, newTree->fp);
+            bytesWritten += fwrite(INCONSISTENT_FILE, sizeof(char), 1, newTree->fp);
+            for (int i = 0; i < 76; i++)
+                bytesWritten += fwrite("@", sizeof(char), 1, newTree->fp);
+
+            if (bytesWritten != DISK_PAGE_SIZE) {
+                freeBTree(newTree);
+                return NULL; 
+            }
 
             newTree->fileStatus = CONSISTENT_FILE;
             newTree->nextNodeRRN = 0;
@@ -24,81 +40,129 @@ BTreeHeader *createBTree(const char *filename) {
     return NULL;
 }
 
+// (Global) Writes current header from RAM into the file
+// Return value: If the write succeeded (boolean)
 bool writeBTreeHeader(BTreeHeader *fileHeader) {
+    size_t bytesWritten = 0;
     if (fileHeader) {
-        fwrite(&fileHeader->fileStatus, sizeof(char), 1, fileHeader->fp);
-        fwrite(&fileHeader->rootNode, sizeof(int32_t), 1, fileHeader->fp);
-        fwrite(&fileHeader->nextNodeRRN, sizeof(int32_t), 1, fileHeader->fp);
+        bytesWritten += fwrite(&fileHeader->fileStatus, sizeof(char), 1, fileHeader->fp);
+        bytesWritten += fwrite(&fileHeader->rootNode, sizeof(int32_t), 1, fileHeader->fp);
+        bytesWritten += fwrite(&fileHeader->nextNodeRRN, sizeof(int32_t), 1, fileHeader->fp);
+
+        if (bytesWritten != BTREE_HEADER_SIZE)
+            return false;
+
         return true;
     }
     return false;
 }
 
+// (Global) Opens an already existent B-Tree file header.
+// Return value: A pointer to the header struct of the given file (BTreeHeader *)
 BTreeHeader *openBTree(const char *filename) {
     if (filename != NULL) {
+        size_t bytesRead = 0;
         BTreeHeader *fileHeader = (BTreeHeader *) malloc(sizeof(BTreeHeader));
-        
-        fileHeader->fp = fopen(filename, "rb");
-        if(fileHeader->fp != NULL) {
-            fwrite(&INCONSISTENT_FILE[0], sizeof(char), 1, fileHeader->fp);
-            fread(&fileHeader->rootNode, sizeof(int32_t), 1, fileHeader->fp);
-            fread(&fileHeader->nextNodeRRN, sizeof(int32_t), 1, fileHeader->fp);
-            fileHeader->fileStatus = CONSISTENT_FILE;
-            
-            return fileHeader;
+
+        if (fileHeader) {
+            fileHeader->fp = fopen(filename, "rb+");
+
+            if(fileHeader->fp != NULL) {
+                char fileStatus;
+                fread(&fileStatus, 1, sizeof(char), fileHeader->fp);
+                if(fileStatus != CONSISTENT_FILE) {
+                    freeBTree(fileHeader);
+                    return NULL;
+                }
+
+                rewind(fileHeader->fp);
+                bytesRead += fwrite(INCONSISTENT_FILE, sizeof(char), 1, fileHeader->fp);
+                fflush(fileHeader->fp);
+
+                bytesRead += fread(&fileHeader->rootNode, 1, sizeof(int32_t), fileHeader->fp);
+                bytesRead += fread(&fileHeader->nextNodeRRN, 1, sizeof(int32_t), fileHeader->fp);
+                fileHeader->fileStatus = CONSISTENT_FILE;
+
+                if (bytesRead != BTREE_HEADER_SIZE) {
+                    freeBTree(fileHeader); 
+                    return NULL;
+                }
+                
+                return fileHeader;
+            }
+            free(fileHeader);
+            return NULL;
         }
         return NULL;
     }
     return NULL;
 }
 
-void freeBTree(BTreeHeader *fileHeader) {
-    if (fileHeader) {
-        fclose(fileHeader->fp);
-        free(fileHeader);
-    }
-}
-
+// (Static) Writes an spectific node in the next RRN of current B-Tree.
+// Return value: If the write succeeded (boolean)
 static bool writeNode(FILE *fp, BTreeNode *currNode) {
     if (fp && currNode) {
+        size_t bytesWritten = 0;
         fseek(fp, (currNode->nodeRRN + 1) * DISK_PAGE_SIZE, SEEK_SET);
         
-        fwrite(&currNode->isLeaf, sizeof(char), 1, fp);
-        fwrite(&currNode->keyCounter, sizeof(int32_t), 1, fp);
-        fwrite(&currNode->nodeRRN, sizeof(int32_t), 1, fp);
+        bytesWritten += fwrite(&currNode->isLeaf, sizeof(char), 1, fp);
+        bytesWritten += fwrite(&currNode->keyCounter, sizeof(int32_t), 1, fp);
+        bytesWritten += fwrite(&currNode->nodeRRN, sizeof(int32_t), 1, fp);
         for (int i = 0; i < 4; i++) {
-            fwrite(&currNode->childPointers[i], sizeof(int32_t), 1, fp);
-            fwrite(&currNode->keyValues[i].key, sizeof(int32_t), 1, fp);
-            fwrite(&currNode->keyValues[i].regOffset, sizeof(int64_t), 1, fp);
+            bytesWritten += fwrite(&currNode->childPointers[i], sizeof(int32_t), 1, fp);
+            bytesWritten += fwrite(&currNode->keyValues[i].key, sizeof(int32_t), 1, fp);
+            bytesWritten += fwrite(&currNode->keyValues[i].regOffset, sizeof(int64_t), 1, fp);
         }
-        fwrite(&currNode->childPointers[4], sizeof(int32_t), 1, fp);
+        bytesWritten += fwrite(&currNode->childPointers[4], sizeof(int32_t), 1, fp);
+
+        if (bytesWritten != DISK_PAGE_SIZE)
+            return false;
+
         return true;
     }
     return false;
 }
 
+// (Static) Frees an existent B-Tree node from memory.
+// Return value: none (void)
+static void freeNode(BTreeNode *node) {
+    if (node)
+        free(node);
+}
+
+// (Static) Loads an spectific B-Tree node at given RNN.
+// Return value: A pointer to the loaded node struct (BTreeNode *)
 static BTreeNode *loadNode(FILE *fp, int32_t regRRN) {
     if (fp) {
+        size_t bytesRead = 0;
         fseek(fp, (regRRN + 1) * DISK_PAGE_SIZE , SEEK_SET);
 
         BTreeNode *node = (BTreeNode *) malloc(sizeof(BTreeNode));
         if (node) {
-            fread(&node->isLeaf, sizeof(char), 1, fp);
-            fread(&node->keyCounter, sizeof(int32_t), 1, fp);
-            fread(&node->nodeRRN, sizeof(int32_t), 1, fp);
+            bytesRead += fread(&node->isLeaf, 1, sizeof(char), fp);
+            bytesRead += fread(&node->keyCounter, 1, sizeof(int32_t), fp);
+            bytesRead += fread(&node->nodeRRN, 1, sizeof(int32_t), fp);
             for (int i = 0; i < 4; i++) {
-                fread(&node->childPointers[i], sizeof(int32_t), 1, fp);
-                fread(&node->keyValues[i].key, sizeof(int32_t), 1, fp);
-                fread(&node->keyValues[i].regOffset, sizeof(int64_t), 1, fp);
+                bytesRead += fread(&node->childPointers[i], 1, sizeof(int32_t), fp);
+                bytesRead += fread(&node->keyValues[i].key, 1, sizeof(int32_t), fp);
+                bytesRead += fread(&node->keyValues[i].regOffset, 1, sizeof(int64_t), fp);
             }
-            fread(&node->childPointers[4], sizeof(int32_t), 1, fp);
+            bytesRead += fread(&node->childPointers[4], 1, sizeof(int32_t), fp);
+
+            if (bytesRead != DISK_PAGE_SIZE) {
+                freeNode(node);
+                return NULL;
+            }
+
             return node;
         }
-        return node;
+        return NULL;
     }
     return NULL;
 }
 
+// (Static) Creates a new B-Tree node.
+// Return value: A pointer to the loaded node struct (BTreeNode *)
 static BTreeNode *createNode(char isLeaf) {
     BTreeNode *newNode = (BTreeNode *) malloc(sizeof(BTreeNode));
     if (newNode) {
@@ -116,11 +180,8 @@ static BTreeNode *createNode(char isLeaf) {
     return newNode;
 }
 
-static void freeNode(BTreeNode *node) {
-    if (node)
-        free(node);
-}
-
+// (Static) Inserts a given pair (KEY,OFFSET) into the current node.
+// Return value: If the insertion succeeded (boolean)
 static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, int32_t childRRN, int i) {
     if (node) {
         for(int j = MAX_KEYS - 1; j > i; j--) {
@@ -138,6 +199,8 @@ static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, 
     return false;
 }
 
+// (Static) Splits a full B-Tree node into two with BTREE_ORDER/2 elements.
+// Return value: A pointer to the promoted index (IndexStruct *)
 static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t newKey, int64_t newOffset, int32_t i) {
     IndexStruct *tempIndex = (IndexStruct *) malloc(sizeof(IndexStruct) * (MAX_KEYS+1));
     for(int j = 0, k = 0; j < MAX_KEYS + 1; j++, k++) {
@@ -199,12 +262,17 @@ static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t 
         freeNode(newNode);
         freeNode(currNode);
     }
-    //printf("no promovido: %d\n", promotionIndex->key);
     return promotionIndex;
 }
 
+// (Static) Recursive auxiliar insertion of a new pair (KEY,OFFSET) into the given B-Tree.
+// Return value: A pointer to the promoted index (IndexStruct *)
 static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newKey, int64_t newOffset) {
     BTreeNode *currNode = loadNode(fileHeader->fp, regRRN);
+    
+    if(!currNode) {
+        return NULL;
+    }
     
     for(int i = 0; i <= currNode->keyCounter; i++) {
         if(i == currNode->keyCounter || newKey < currNode->keyValues[i].key) {
@@ -242,6 +310,8 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
     }
 }
 
+// (Global) Inserts a new pair (KEY,OFFSET) into the given B-Tree.
+// Return value: A pointer to the promoted index (IndexStruct *)
 void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
     if (fileHeader) {
         if (fileHeader->rootNode == EMPTY) {
@@ -274,6 +344,8 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
     }
 }
 
+// (Static) Recursive auxiliar search of a given key in B-Tree.
+// Return value: The respective offset of the key in data file (int64_t)
 static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
     BTreeNode *node = loadNode(fp, RRN);
     if(node) {
@@ -281,6 +353,10 @@ static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
             if(i == node->keyCounter || key < node->keyValues[i].key) {
                 int32_t childRRN = node->childPointers[i];
                 freeNode(node);
+
+                if(childRRN == EMPTY)
+                    return EMPTY;
+                    
                 return search(fp, childRRN, key);
             }
             if(node->keyValues[i].key == key) {
@@ -289,37 +365,16 @@ static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
                 return offset;
             }
         }
-    } else {
         return EMPTY;
-    }
+    } 
+    return EMPTY;
 }
 
+// (Global) Searches a given key in B-Tree.
+// Return value: The respective offset of the key in data file (int64_t)
 int64_t searchBTree(BTreeHeader *fileHeader, int32_t key) {
-    return search(fileHeader->fp, fileHeader->rootNode, key);
-}
-
-static void printBTreeRec(FILE* fp, BTreeHeader *fileHeader, int RRN, int depth) {
-    BTreeNode *node = loadNode(fileHeader->fp, RRN);
-    for(int i = 0; i < depth; i++) {
-        fprintf(fp, "\t");
-        
+    if(fileHeader) {
+        return search(fileHeader->fp, fileHeader->rootNode, key);
     }
-    fprintf(fp, "RRN: %d -> ", node->nodeRRN);
-    for(int i = 0; i < node->keyCounter; i++) {
-        //fprintf(fp, "%d: %ld | ", node->keyValues[i].key, node->keyValues[i].regOffset);
-        fprintf(fp, "%d | ", node->keyValues[i].key);
-    }
-    fprintf(fp,"\n");
-    if(node->isLeaf == IS_NOT_LEAF) {
-        for(int i = 0; i <= node->keyCounter; i++) {
-            printBTreeRec(fp, fileHeader, node->childPointers[i], depth+1);
-        }
-    }
-    freeNode(node);
-}
-
-void printBTree(BTreeHeader *fileHeader) {
-    FILE *fp = fopen("btreeOut.txt", "w");
-    printBTreeRec(fp, fileHeader, fileHeader->rootNode, 0);
-    fclose(fp);
+    return EMPTY;
 }
