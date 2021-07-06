@@ -29,7 +29,7 @@ static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
     return false;
 }
 
-// (Global) Parses current CSV file or stdin line to the registry struct passed as parameter
+// (Extern) Parses current CSV file or stdin line to the registry struct passed as parameter
 // In CSV file, strsep delimiter is a comma (COMMA_DELIM)
 // In stdin, the input is formated previously as CSV-like to be easier to read
 // Return value: If everything succeeded (boolean)
@@ -84,7 +84,7 @@ bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData) {
     return false;
 }
 
-// (Global) Writes each header field in sequence to the binary file
+// (Extern) Writes each header field in sequence to the binary file
 // Return value: If all data were written as expected (boolean)
 bool writeLinhaHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
     if (binFile && headerStruct) {
@@ -108,7 +108,7 @@ bool writeLinhaHeaderOnBinary(FILE *binFile, LinhaHeader *headerStruct) {
     return false;
 }
 
-// (Global) Writes each registry field in sequence to the binary file
+// (Extern) Writes each registry field in sequence to the binary file
 // Return value: If all data were written (boolean)
 bool writeLinhaRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
     if (binFile && registryStruct) {
@@ -137,7 +137,7 @@ bool writeLinhaRegistryOnBinary(FILE *binFile, LinhaData *registryStruct) {
     return false;
 }
 
-// (Global) Frees everything related to the header struct (its pointer included)
+// (Extern) Frees everything related to the header struct (its pointer included)
 // Return value: If everything succeeded as expected (boolean)
 bool freeLinhaHeader(LinhaHeader **header) {
     if (header && *header) {
@@ -155,7 +155,7 @@ bool freeLinhaHeader(LinhaHeader **header) {
     return false;
 }
 
-// (Global) Frees everything inside registry data struct (its pointer not included)
+// (Extern) Frees everything inside registry data struct (its pointer not included)
 // Return value: If everything succeeded as expected (boolean)
 bool freeLinhaData(LinhaData *data) {
     if (data) {
@@ -168,7 +168,7 @@ bool freeLinhaData(LinhaData *data) {
     return false;
 }
 
-// (Global) Reads a CSV file of category "Linhas" and write its respective binary file
+// (Extern) Reads a CSV file of category "Linhas" and write its respective binary file
 // Return value: File pointer to binary file (FILE *)
 bool writeLinhaBinary(char *csvFilename, char *binFilename) {
     if (csvFilename && strlen(csvFilename) > 0) {
@@ -220,7 +220,7 @@ bool writeLinhaBinary(char *csvFilename, char *binFilename) {
     return false;
 }
 
-// (Global) Reads and builds the header struct from the binary file
+// (Extern) Reads and builds the header struct from the binary file
 // Return value: A pointer for the built struct (LinhaHeader *)
 LinhaHeader *loadLinhaBinaryHeader(FILE *binFile) {
     if (binFile) {
@@ -260,7 +260,7 @@ LinhaHeader *loadLinhaBinaryHeader(FILE *binFile) {
     return NULL;
 }
 
-// (Global) Reads and builds the registry struct (to an already existent malloc'd struct) from the binary file
+// (Extern) Reads and builds the registry struct (to an already existent malloc'd struct) from the binary file
 // Return value: If the read succeeded as expected (boolean)
 bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
     if (binFile && registryStruct) {
@@ -307,7 +307,7 @@ bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct) {
     return false;
 }
 
-// (Global) Shows formated recovered registry information in screen.
+// (Extern) Shows formated recovered registry information in screen.
 // Return value: none (void)
 void printLinhaRegistry(LinhaHeader *header, LinhaData *registry) {
     if (header && registry) {

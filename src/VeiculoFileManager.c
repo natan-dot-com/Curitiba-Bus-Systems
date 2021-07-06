@@ -30,7 +30,7 @@ static VeiculoHeader *readVeiculoHeader(FILE *fpVeiculo) {
     return NULL;
 }
 
-// (Global) Parses current CSV file line to the registry struct passed as parameter
+// (Extern) Parses current CSV file line to the registry struct passed as parameter
 // Return value: If everything succeeded (boolean)
 bool readVeiculoRegistry(FILE *fpVeiculo, VeiculoData *newData) {
     if (fpVeiculo) {
@@ -101,7 +101,7 @@ bool readVeiculoRegistry(FILE *fpVeiculo, VeiculoData *newData) {
     return false;
 }
 
-// (Global) Writes each header field in sequence to the binary file
+// (Extern) Writes each header field in sequence to the binary file
 // Return value: If all data were written as expected (boolean)
 bool writeVeiculoHeaderOnBinary(FILE *binFile, VeiculoHeader *headerStruct) {
     if (binFile && headerStruct) {
@@ -127,7 +127,7 @@ bool writeVeiculoHeaderOnBinary(FILE *binFile, VeiculoHeader *headerStruct) {
     return false;
 }
 
-// (Global) Writes each registry field in sequence to the binary file
+// (Extern) Writes each registry field in sequence to the binary file
 // Return value: If all data were written (boolean)
 bool writeVeiculoRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct) {
     if (binFile && registryStruct) {
@@ -159,7 +159,7 @@ bool writeVeiculoRegistryOnBinary(FILE *binFile, VeiculoData *registryStruct) {
     return false;
 }
 
-// (Global) Frees everything related to the header struct (its pointer included)
+// (Extern) Frees everything related to the header struct (its pointer included)
 // Return value: If everything succeeded as expected (boolean)
 bool freeVeiculoHeader(VeiculoHeader **header) {
     if (header && *header) {
@@ -182,7 +182,7 @@ bool freeVeiculoHeader(VeiculoHeader **header) {
     return false;
 }
 
-// (Global) Frees everything inside registry data struct (its pointer not included)
+// (Extern) Frees everything inside registry data struct (its pointer not included)
 // Return value: If everything succeeded as expected (boolean)
 bool freeVeiculoData(VeiculoData *data) {
     if (data) {
@@ -198,7 +198,7 @@ bool freeVeiculoData(VeiculoData *data) {
     return false;
 }
 
-// (Global) Reads a CSV file of category "Veiculo" and write its respective binary file
+// (Extern) Reads a CSV file of category "Veiculo" and write its respective binary file
 // Return value: If everything succeeded as expected (boolean)
 bool writeVeiculoBinary(char *csvFilename, char *binFilename) {
     if (csvFilename && strlen(csvFilename) > 0) {
@@ -256,7 +256,7 @@ bool writeVeiculoBinary(char *csvFilename, char *binFilename) {
     return false;
 }
 
-// (Global) Reads and builds the header struct from the binary file
+// (Extern) Reads and builds the header struct from the binary file
 // Return value: A pointer for the built struct (VeiculoHeader *)
 VeiculoHeader *loadVeiculoBinaryHeader(FILE *binFile) {
     if (binFile) {
@@ -300,7 +300,7 @@ VeiculoHeader *loadVeiculoBinaryHeader(FILE *binFile) {
     return NULL;
 }
 
-// (Global) Reads and builds the registry struct (to an already existent struct) from the binary file
+// (Extern) Reads and builds the registry struct (to an already existent struct) from the binary file
 // Return value: If the read succeeded as expected (boolean)
 bool loadVeiculoBinaryRegistry(FILE *binFile, VeiculoData *registryStruct) {
     if (binFile && registryStruct) {
@@ -353,7 +353,7 @@ bool loadVeiculoBinaryRegistry(FILE *binFile, VeiculoData *registryStruct) {
     return false;
 }
 
-// (Global) Shows formated recovered registry information in screen.
+// (Extern) Shows formated recovered registry information in screen.
 // Return value: None (void)
 void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
     if (header && registry) {

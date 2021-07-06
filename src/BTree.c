@@ -1,6 +1,6 @@
 #include "BTree.h"
 
-// (Global) Frees current loaded B-Tree struct.
+// (Extern) Frees current loaded B-Tree struct.
 // Return value: none (void)
 void freeBTree(BTreeHeader *fileHeader) {
     if (fileHeader) {
@@ -9,7 +9,7 @@ void freeBTree(BTreeHeader *fileHeader) {
     }
 }
 
-// (Global) Creates a B-Tree header from scratch based on given file name
+// (Extern) Creates a B-Tree header from scratch based on given file name
 // Return value: A pointer to the header struct of the given file (BTreeHeader *)
 BTreeHeader *createBTree(const char *filename) {
     size_t bytesWritten = 0;
@@ -40,7 +40,7 @@ BTreeHeader *createBTree(const char *filename) {
     return NULL;
 }
 
-// (Global) Writes current header from RAM into the file
+// (Extern) Writes current header from RAM into the file
 // Return value: If the write succeeded (boolean)
 bool writeBTreeHeader(BTreeHeader *fileHeader) {
     size_t bytesWritten = 0;
@@ -57,7 +57,7 @@ bool writeBTreeHeader(BTreeHeader *fileHeader) {
     return false;
 }
 
-// (Global) Opens an already existent B-Tree file header.
+// (Extern) Opens an already existent B-Tree file header.
 // Return value: A pointer to the header struct of the given file (BTreeHeader *)
 BTreeHeader *openBTree(const char *filename) {
     if (filename != NULL) {
@@ -310,7 +310,7 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
     }
 }
 
-// (Global) Inserts a new pair (KEY,OFFSET) into the given B-Tree.
+// (Extern) Inserts a new pair (KEY,OFFSET) into the given B-Tree.
 // Return value: A pointer to the promoted index (IndexStruct *)
 void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
     if (fileHeader) {
@@ -370,7 +370,7 @@ static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
     return EMPTY;
 }
 
-// (Global) Searches a given key in B-Tree.
+// (Extern) Searches a given key in B-Tree.
 // Return value: The respective offset of the key in data file (int64_t)
 int64_t searchBTree(BTreeHeader *fileHeader, int32_t key) {
     if(fileHeader) {
