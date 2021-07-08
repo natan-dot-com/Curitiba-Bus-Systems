@@ -51,6 +51,7 @@
     LinhaHeader *loadLinhaBinaryHeader(FILE *binFile);
     bool loadLinhaBinaryRegistry(FILE *binFile, LinhaData *registryStruct); 
 
+    LinhaHeader *readLinhaHeader(FILE *fpLinha);
     bool readLinhaRegistry(FILE *fpLinha, LinhaData *newData);
 
     bool freeLinhaHeader(LinhaHeader **header);

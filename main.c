@@ -10,6 +10,7 @@
 #include "VeiculoFileManager.h"
 #include "Utility.h"
 #include "BTree.h"
+#include "Functionalities.h"
 
 // Every general #define is inside Utility.h
 // Every #define related to Linha/Veiculo commands is inside its respective header file
@@ -28,7 +29,8 @@ int main(int argc, char *argv[]) {
                 char *csvFilename, *binaryFilename;
                 csvFilename = strsep(&inputLine, SPACE_DELIM);
                 binaryFilename = strsep(&inputLine, LINE_BREAK);
-                if (!writeVeiculoBinary(csvFilename, binaryFilename)) {
+
+                if (!createVeiculoBinaryFile(csvFilename, binaryFilename)) {
                     free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
@@ -43,7 +45,8 @@ int main(int argc, char *argv[]) {
                 char *csvFilename, *binaryFilename;
                 csvFilename = strsep(&inputLine, SPACE_DELIM);
                 binaryFilename = strsep(&inputLine, LINE_BREAK);
-                if (!writeLinhaBinary(csvFilename, binaryFilename)) {
+
+                if (!createLinhaBinaryFile(csvFilename, binaryFilename)) {
                     free(trackReference);
                     printf("%s\n", FILE_ERROR);
                     return 0;
@@ -56,6 +59,7 @@ int main(int argc, char *argv[]) {
             // Related to: 'Veiculo' type binary files
             case SHOW_VEICULO_CONTENT: {
                 char *binaryFilename = strsep(&inputLine, LINE_BREAK);
+
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     free(trackReference);
@@ -86,6 +90,7 @@ int main(int argc, char *argv[]) {
                         freeVeiculoData(newRegistry);
                     }
                 }
+
                 free(newRegistry);
                 freeVeiculoHeader(&fileHeader);
                 fclose(binFile);
@@ -96,6 +101,7 @@ int main(int argc, char *argv[]) {
             // Related to: 'Linha' type binary files
             case SHOW_LINHA_CONTENT: {
                 char *binaryFilename = strsep(&inputLine, LINE_BREAK);
+
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     free(trackReference);

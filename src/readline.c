@@ -9,7 +9,7 @@ char *readline(FILE *stream) {
     do {
         ch = fgetc(stream);
     } while (ch == '\n');
-    ungetc(ch, stdin);
+    ungetc(ch, stream);
 
     char *string = NULL;
     int pos = 0;

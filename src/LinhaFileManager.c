@@ -1,9 +1,9 @@
 #include "LinhaFileManager.h"
 #include "Utility.h"
 
-// (Static) Parses first CSV file line to the header struct
+// (Extern) Parses first CSV file line to the header struct
 // Return value: A pointer to the built struct (LinhaHeader *)
-static LinhaHeader *readLinhaHeader(FILE *fpLinha) {
+LinhaHeader *readLinhaHeader(FILE *fpLinha) {
     if (fpLinha) {
         char *lineRead = readline(fpLinha);
         if (lineRead) {
@@ -163,58 +163,6 @@ bool freeLinhaData(LinhaData *data) {
             free(data->linhaName);
         if (data->colorSize > 0)
             free(data->linhaColor);
-        return true;
-    }
-    return false;
-}
-
-// (Extern) Reads a CSV file of category "Linhas" and write its respective binary file
-// Return value: File pointer to binary file (FILE *)
-bool writeLinhaBinary(char *csvFilename, char *binFilename) {
-    if (csvFilename && strlen(csvFilename) > 0) {
-        FILE *csvFile = fopen(csvFilename, "r");
-        if (!csvFile)
-            return false;
-
-        LinhaHeader *fileHeader = readLinhaHeader(csvFile);
-        if (!fileHeader)
-            return false;
-        
-        FILE *binFile = fopen(binFilename, "wb+");
-        if (!binFile)
-            return false;
-        
-        // Writes 82 bytes as a placeholder for the header
-        // Signing file as "inconsistent" (0)
-        fwrite(INCONSISTENT_FILE, sizeof(char), 1, binFile);
-        fwrite("@", sizeof(char), LINHA_HEADER_SIZE-1, binFile);
-        
-        // Read each registry from CSV file and write it to binary
-        LinhaData *newRegistry = (LinhaData *) malloc(sizeof *newRegistry);
-        char EOFFlag;
-        do {
-            EOFFlag = fgetc(csvFile);
-            if (EOFFlag != EOF) {
-                fseek(csvFile, -1, SEEK_CUR);
-                readLinhaRegistry(csvFile, newRegistry);
-                writeLinhaRegistryOnBinary(binFile, newRegistry);
-                if (newRegistry->isRemoved == REMOVED_REGISTRY)
-                    fileHeader->removedRegNum++; 
-                else
-                    fileHeader->regNumber++;
-                freeLinhaData(newRegistry);
-            }
-        } while (EOFFlag != EOF);
-        fclose(csvFile);
-        free(newRegistry);
-
-        // Rewind into binary file and write the header struct
-        // Signing file as "consistent" (1)
-        fileHeader->byteNextReg = (int64_t) ftell(binFile);
-        rewind(binFile);
-        writeLinhaHeaderOnBinary(binFile, fileHeader);
-        freeLinhaHeader(&fileHeader);
-        fclose(binFile);
         return true;
     }
     return false;

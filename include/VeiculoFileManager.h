@@ -51,6 +51,7 @@
     VeiculoHeader *loadVeiculoBinaryHeader(FILE *binFile);
     bool loadVeiculoBinaryRegistry(FILE *binFile, VeiculoData *registryStruct);
 
+    VeiculoHeader *readVeiculoHeader(FILE *fpVeiculo);
     bool readVeiculoRegistry(FILE *fpVeiculo, VeiculoData *newData);
 
     bool freeVeiculoHeader(VeiculoHeader **header);
