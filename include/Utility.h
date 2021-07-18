@@ -14,14 +14,11 @@
     #define COMMA_DELIM ","
     #define LINE_BREAK "\n"
 
+    #define NULL_FIELD "campo com valor nulo"
+
     // Registry status constants
     #define REMOVED_REGISTRY '0'
     #define VALID_REGISTRY '1'
-
-    // General/error messages during execution
-    #define NULL_FIELD "campo com valor nulo"
-    #define FILE_ERROR "Falha no processamento do arquivo."
-    #define REG_NOT_FOUND "Registro inexistente."
 
     // Consistent/inconsistent file signature (for fileStatus in header)
     #define INCONSISTENT_FILE "0"
@@ -37,7 +34,7 @@
     #define REG_EXTRA_SIZE 5
 
     // Commands code identifier   
-    enum inputCommands {
+    enum InputCommands {
         WRITE_VEICULO_BINARY = 1,  
         WRITE_LINHA_BINARY,  
         SHOW_VEICULO_CONTENT,  

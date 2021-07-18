@@ -11,6 +11,7 @@
 #include "Utility.h"
 #include "BTree.h"
 #include "Functionalities.h"
+#include "ErrorHandler.h"
 
 // Every general #define is inside Utility.h
 // Every #define related to Linha/Veiculo commands is inside its respective header file
@@ -21,6 +22,8 @@ int main(int argc, char *argv[]) {
 
     char *inputCommand = strsep(&inputLine, SPACE_DELIM);
     if (inputCommand) {
+
+        int8_t errorHandler;
         switch(atoi(inputCommand)) {
 
             // Functionality 1: Writes a binary file from existent CSV file
@@ -30,9 +33,9 @@ int main(int argc, char *argv[]) {
                 csvFilename = strsep(&inputLine, SPACE_DELIM);
                 binaryFilename = strsep(&inputLine, LINE_BREAK);
 
-                if (!createVeiculoBinaryFile(csvFilename, binaryFilename)) {
+                if (errorHandler = createVeiculoBinaryFile(csvFilename, binaryFilename)) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", matchError(errorHandler));
                     return 0;
                 }
                 binarioNaTela(binaryFilename);
@@ -46,9 +49,9 @@ int main(int argc, char *argv[]) {
                 csvFilename = strsep(&inputLine, SPACE_DELIM);
                 binaryFilename = strsep(&inputLine, LINE_BREAK);
 
-                if (!createLinhaBinaryFile(csvFilename, binaryFilename)) {
+                if (errorHandler = createLinhaBinaryFile(csvFilename, binaryFilename)) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", matchError(errorHandler));
                     return 0;
                 }
                 binarioNaTela(binaryFilename);
@@ -63,7 +66,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 
@@ -72,7 +75,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     fclose(binFile);
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 if (fileHeader->regNumber == 0) {
@@ -105,7 +108,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -114,7 +117,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
@@ -149,7 +152,7 @@ int main(int argc, char *argv[]) {
                 if (!binFile) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -158,7 +161,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
@@ -265,7 +268,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -274,7 +277,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
@@ -364,7 +367,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -373,7 +376,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -418,7 +421,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -427,7 +430,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -473,7 +476,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -482,7 +485,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
@@ -526,7 +529,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -535,7 +538,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
@@ -583,7 +586,7 @@ int main(int argc, char *argv[]) {
                 if (!binFile) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -592,7 +595,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
@@ -605,7 +608,7 @@ int main(int argc, char *argv[]) {
                 // Load B-Tree file header
                 BTreeHeader *indexHeader = openBTree(indexFilename);
                 if (!indexHeader) {
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     freeVeiculoHeader(&fileHeader);
                     freeBTree(indexHeader);
                     free(trackReference);
@@ -651,7 +654,7 @@ int main(int argc, char *argv[]) {
                 if (!binFile) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -660,7 +663,7 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
                 else if (fileHeader->regNumber == 0) {
@@ -673,7 +676,7 @@ int main(int argc, char *argv[]) {
                 // Load B-Tree file header
                 BTreeHeader *indexHeader = openBTree(indexFilename);
                 if (!indexHeader) {
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     freeBTree(indexHeader);
                     freeLinhaHeader(&fileHeader);
                     free(trackReference);
@@ -716,7 +719,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -725,14 +728,14 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
                 // Loads B-Tree header
                 BTreeHeader *indexHeader = openBTree(indexFilename);
                 if (!indexHeader) {
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     freeBTree(indexHeader);
                     freeVeiculoHeader(&fileHeader);
                     free(trackReference);
@@ -795,7 +798,7 @@ int main(int argc, char *argv[]) {
                 FILE *binFile = fopen(binaryFilename, "rb+");
                 if (!binFile) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
@@ -804,14 +807,14 @@ int main(int argc, char *argv[]) {
                 if (!fileHeader) {
                     free(trackReference);
                     fclose(binFile);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     return 0;
                 }
 
                 // Loads B-Tree file header
                 BTreeHeader *indexHeader = openBTree(indexFilename);
                 if (!indexHeader) {
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", FILE_PROC_ERROR);
                     freeBTree(indexHeader);
                     freeLinhaHeader(&fileHeader);
                     free(trackReference);
@@ -868,6 +871,13 @@ int main(int argc, char *argv[]) {
                 char *linhaBinary = strsep(&inputLine, SPACE_DELIM);
                 char *veiculoField = strsep(&inputLine, SPACE_DELIM);
                 char *linhaField = strsep(&inputLine, LINE_BREAK);
+
+                if (errorHandler = printVeiculoMerged(veiculoBinary, linhaBinary)) {
+                    free(trackReference);
+                    printf("%s\n", matchError(errorHandler));
+                    return 0;
+                }
+                break;
                 
             }
             case MERGE_BTREE_VEICULO_LINHA: {
@@ -877,15 +887,21 @@ int main(int argc, char *argv[]) {
                 char *linhaField = strsep(&inputLine, SPACE_DELIM);
                 char *linhaBTree = strsep(&inputLine, LINE_BREAK);
 
+                if (errorHandler = printVeiculoMergedWithBTree(veiculoBinary, linhaBinary, linhaBTree)) {
+                    free(trackReference);
+                    printf("%s\n", matchError(errorHandler));
+                    return 0;
+                }
+                break;
             }
             case SORT_VEICULO_FILE: {
                 char *veiculoBinary = strsep(&inputLine, SPACE_DELIM);
                 char *sortedBinary = strsep(&inputLine, SPACE_DELIM);
                 char *sortField = strsep(&inputLine, LINE_BREAK);
 
-                if (!sortVeiculoFile(veiculoBinary, sortedBinary)) {
+                if (errorHandler = sortVeiculoFile(veiculoBinary, sortedBinary)) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", matchError(errorHandler));
                     return 0;
                 }
                 binarioNaTela(sortedBinary);
@@ -896,9 +912,9 @@ int main(int argc, char *argv[]) {
                 char *sortedBinary = strsep(&inputLine, SPACE_DELIM);
                 char *sortField = strsep(&inputLine, LINE_BREAK);
 
-                if (!sortLinhaFile(linhaBinary, sortedBinary)) {
+                if (errorHandler = sortLinhaFile(linhaBinary, sortedBinary)) {
                     free(trackReference);
-                    printf("%s\n", FILE_ERROR);
+                    printf("%s\n", matchError(errorHandler));
                     return 0;
                 }
                 binarioNaTela(sortedBinary);
@@ -910,6 +926,12 @@ int main(int argc, char *argv[]) {
                 char *veiculoField = strsep(&inputLine, SPACE_DELIM);
                 char *linhaField = strsep(&inputLine, LINE_BREAK);
 
+                if (errorHandler = printVeiculoSortMerge(veiculoBinary, linhaBinary)) {
+                    free(trackReference);
+                    printf("%s\n", matchError(errorHandler));
+                    return 0;
+                }
+                break;
             }
         }
     }

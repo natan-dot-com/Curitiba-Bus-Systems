@@ -2,24 +2,24 @@
 
 // (Extern) Reads a CSV file of category "Veiculo" and write its respective binary file
 // Return value: If everything succeeded as expected (boolean)
-bool createVeiculoBinaryFile(char *csvFilename, char *binFilename) {
+int8_t createVeiculoBinaryFile(char *csvFilename, char *binFilename) {
     if (csvFilename && strlen(csvFilename) > 0) {
         FILE *csvFile = fopen(csvFilename, "r");
         if (!csvFile) {
-            return false;
+            return ERR_FILE_PROC;
         }
 
         VeiculoHeader *fileHeader = readVeiculoHeader(csvFile);
         if (!fileHeader) {
             fclose(csvFile);
-            return false;
+            return ERR_FILE_PROC;
         }
 
         FILE *binFile = fopen(binFilename, "wb+");
         if (!binFile) {
             fclose(csvFile);
             freeVeiculoHeader(&fileHeader);
-            return false;
+            return ERR_FILE_PROC;
         }
         
         // Writes 175 bytes as a placeholder for the header
@@ -56,26 +56,33 @@ bool createVeiculoBinaryFile(char *csvFilename, char *binFilename) {
         writeVeiculoHeaderOnBinary(binFile, fileHeader);
         freeVeiculoHeader(&fileHeader);
         fclose(binFile);
-        return true;
+
+        return EXIT_SUCCESS;
     }
-    return false;
+    return ERR_FILE_PROC;
 }
 
 // (Extern) Reads a CSV file of category "Linhas" and write its respective binary file
 // Return value: File pointer to binary file (FILE *)
-bool createLinhaBinaryFile(char *csvFilename, char *binFilename) {
+int8_t createLinhaBinaryFile(char *csvFilename, char *binFilename) {
     if (csvFilename && strlen(csvFilename) > 0) {
         FILE *csvFile = fopen(csvFilename, "r");
-        if (!csvFile)
-            return false;
+        if (!csvFile) {
+            return ERR_FILE_PROC;
+        }
 
         LinhaHeader *fileHeader = readLinhaHeader(csvFile);
-        if (!fileHeader)
-            return false;
+        if (!fileHeader) {
+            fclose(csvFile);
+            return ERR_FILE_PROC;
+        }
         
         FILE *binFile = fopen(binFilename, "wb+");
-        if (!binFile)
-            return false;
+        if (!binFile) {
+            fclose(csvFile);
+            freeLinhaHeader(&fileHeader);
+            return ERR_FILE_PROC;
+        }
         
         // Writes 82 bytes as a placeholder for the header
         // Signing file as "inconsistent" (0)
@@ -111,34 +118,37 @@ bool createLinhaBinaryFile(char *csvFilename, char *binFilename) {
         writeLinhaHeaderOnBinary(binFile, fileHeader);
         freeLinhaHeader(&fileHeader);
         fclose(binFile);
-        return true;
+
+        return EXIT_SUCCESS;
     }
-    return false;
+    return ERR_FILE_PROC;
 }
 
-bool sortVeiculoFile(char *binFilename, char* sortedFilename) {
+int8_t sortVeiculoFile(char *binFilename, char* sortedFilename) {
     if (binFilename) {
         FILE *binFile = fopen(binFilename, "rb");
         if (!binFile) {
-            printf("%s\n", FILE_ERROR);
-            return false;
+            return ERR_FILE_LOAD;
         }
 
         VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
         if (!fileHeader) {
             fclose(binFile);
-            printf("%s\n", FILE_ERROR);
-            return false;
+            return ERR_FILE_LOAD;
+        }
+        if (fileHeader->regNumber == 0) {
+            freeVeiculoHeader(&fileHeader);
+            fclose(binFile);
+            return ERR_REG_NOT_FOUND;
         }
         fileHeader->fileStatus = CONSISTENT_FILE;
         fileHeader->removedRegNum = 0;
 
         FILE *sortedFile = fopen(sortedFilename, "wb+");
-        if (sortedFile) {
+        if (!sortedFile) {
             fclose(binFile);
             freeVeiculoHeader(&fileHeader);
-            printf("%s\n", FILE_ERROR);
-            return false;
+            return ERR_FILE_LOAD;
         }
 
         fwrite(INCONSISTENT_FILE, sizeof(char), 1, sortedFile);
@@ -167,43 +177,49 @@ bool sortVeiculoFile(char *binFilename, char* sortedFilename) {
         freeVeiculoHeader(&fileHeader);
         free(veiculoList);
 
-        return true;
+        return EXIT_SUCCESS;
     }
-    return false;
+    return ERR_FILE_LOAD;
 }
 
-bool sortLinhaFile(char *binFilename, char* sortedFilename) {
+int8_t sortLinhaFile(char *binFilename, char* sortedFilename) {
     if (binFilename) {
         FILE *binFile = fopen(binFilename, "rb");
         if (!binFile) {
-            printf("%s\n", FILE_ERROR);
-            return false;
+            return ERR_FILE_LOAD;
         }
 
         LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
         if (!fileHeader) {
             fclose(binFile);
-            printf("%s\n", FILE_ERROR);
-            return false;
+            return ERR_FILE_LOAD;
+        }
+        if (fileHeader->regNumber == 0) {
+            fclose(binFile);
+            freeLinhaHeader(&fileHeader);
+            return ERR_REG_NOT_FOUND;
         }
         fileHeader->fileStatus = CONSISTENT_FILE;
         fileHeader->removedRegNum = 0;
 
         FILE *sortedFile = fopen(sortedFilename, "wb+");
-        if (sortedFile) {
+        if (!sortedFile) {
             fclose(binFile);
             freeLinhaHeader(&fileHeader);
-            printf("%s\n", FILE_ERROR);
-            return false;
+            return ERR_FILE_LOAD;
         }
 
         fwrite(INCONSISTENT_FILE, sizeof(char), 1, sortedFile);
         fwrite("@", sizeof(char), LINHA_HEADER_SIZE-1, sortedFile);
         
-        LinhaData **linhaList = (LinhaData **) malloc(fileHeader->regNumber * sizeof(LinhaData *));
+        LinhaData **linhaList = (LinhaData **) calloc(fileHeader->regNumber, sizeof(LinhaData *));
         for (int i = 0; i < fileHeader->regNumber; i++) {
+            if (!linhaList[i]) {
+                linhaList[i] = (LinhaData *) malloc(sizeof(LinhaData));
+            }
             loadLinhaBinaryRegistry(binFile, linhaList[i]);
-            if (linhaList[i] == NULL) {
+            if (linhaList[i]->isRemoved == REMOVED_REGISTRY) {
+                freeLinhaData(linhaList[i]);
                 i--;
             }
         }
@@ -223,23 +239,21 @@ bool sortLinhaFile(char *binFilename, char* sortedFilename) {
         freeLinhaHeader(&fileHeader);
         free(linhaList);
 
-        return true;
+        return EXIT_SUCCESS;
     }
-    return false;
+    return ERR_FILE_LOAD;
 }
 
-bool printVeiculoMerged(char *veiculoBinFilename, char *linhaBinFilename) {
+int8_t printVeiculoMerged(char *veiculoBinFilename, char *linhaBinFilename) {
     FILE *veiculoBinFile = fopen(veiculoBinFilename, "rb");
     if (!veiculoBinFile) {
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
 
     FILE *linhaBinFile = fopen(linhaBinFilename, "rb");
     if (!linhaBinFile) {
         fclose(veiculoBinFile);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
     
     // Load file header
@@ -247,8 +261,13 @@ bool printVeiculoMerged(char *veiculoBinFilename, char *linhaBinFilename) {
     if (!veiculoHeader) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
+    }
+    if (veiculoHeader->regNumber == 0) {
+        fclose(veiculoBinFile);
+        fclose(linhaBinFile);
+        freeVeiculoHeader(&veiculoHeader);
+        return ERR_REG_NOT_FOUND;
     }
 
     LinhaHeader *linhaHeader = loadLinhaBinaryHeader(linhaBinFile);
@@ -256,40 +275,43 @@ bool printVeiculoMerged(char *veiculoBinFilename, char *linhaBinFilename) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
         freeVeiculoHeader(&veiculoHeader);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
-
-    if (veiculoHeader->regNumber == 0 || linhaHeader->regNumber == 0) {
+    if (linhaHeader->regNumber == 0) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
         freeVeiculoHeader(&veiculoHeader);
         freeLinhaHeader(&linhaHeader);
-        printf("%s\n", REG_NOT_FOUND);
-        return false;
+        return ERR_REG_NOT_FOUND;
     }
 
     // Read and displays each registry in screen
     VeiculoData *newVeiculoRegistry = (VeiculoData *) malloc(sizeof *newVeiculoRegistry);
     LinhaData *newLinhaRegistry = (LinhaData *) malloc(sizeof *newLinhaRegistry);
+
+    int mergedRegistries = 0;
     while (loadVeiculoBinaryRegistry(veiculoBinFile, newVeiculoRegistry)) {
+
         if (newVeiculoRegistry->isRemoved == VALID_REGISTRY) {
-            printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
             
             if(newVeiculoRegistry->linhaCode != EMPTY) {
                 // Skip Header
                 fseek(linhaBinFile, LINHA_HEADER_SIZE, SEEK_SET);
 
                 while(loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry)) {
-                    if(newVeiculoRegistry->linhaCode == newLinhaRegistry->linhaCode) {
-                        break;
-                    } else {
-                        freeLinhaData(newLinhaRegistry);
+                    if(newLinhaRegistry->isRemoved == VALID_REGISTRY) {
+                        if(newVeiculoRegistry->linhaCode == newLinhaRegistry->linhaCode) {
+                            printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
+                            printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                            freeLinhaData(newLinhaRegistry);
+                            mergedRegistries++;
+                            break;
+                        } else {
+                            freeLinhaData(newLinhaRegistry);
+                        }
                     }
                 }
-                printLinhaRegistry(linhaHeader, newLinhaRegistry);
 
-                freeLinhaData(newLinhaRegistry);
                 
             }
 
@@ -304,29 +326,30 @@ bool printVeiculoMerged(char *veiculoBinFilename, char *linhaBinFilename) {
     fclose(linhaBinFile);
     fclose(veiculoBinFile);
 
-    return true;
+    if(mergedRegistries == 0) {
+        return ERR_REG_NOT_FOUND;
+    }
+
+    return EXIT_SUCCESS;
 }
 
-bool printVeiculoMergedWithBTree(char *veiculoBinFilename, char *linhaBinFilename, char *linhaBTreeFilename) {
+int8_t printVeiculoMergedWithBTree(char *veiculoBinFilename, char *linhaBinFilename, char *linhaBTreeFilename) {
     FILE *veiculoBinFile = fopen(veiculoBinFilename, "rb");
     if (!veiculoBinFile) {
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
 
     FILE *linhaBinFile = fopen(linhaBinFilename, "rb");
     if (!linhaBinFile) {
         fclose(veiculoBinFile);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
     
     BTreeHeader *bTreeHeader = openBTree(linhaBTreeFilename);
     if(!bTreeHeader) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
     
     // Load file header
@@ -335,8 +358,14 @@ bool printVeiculoMergedWithBTree(char *veiculoBinFilename, char *linhaBinFilenam
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
         freeBTree(bTreeHeader);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
+    }
+    if (veiculoHeader->regNumber == 0) {
+        fclose(veiculoBinFile);
+        fclose(linhaBinFile);
+        freeBTree(bTreeHeader);
+        freeVeiculoHeader(&veiculoHeader);
+        return ERR_REG_NOT_FOUND;
     }
 
     LinhaHeader *linhaHeader = loadLinhaBinaryHeader(linhaBinFile);
@@ -345,34 +374,32 @@ bool printVeiculoMergedWithBTree(char *veiculoBinFilename, char *linhaBinFilenam
         fclose(linhaBinFile);
         freeVeiculoHeader(&veiculoHeader);
         freeBTree(bTreeHeader);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
-
-    if (veiculoHeader->regNumber == 0 || linhaHeader->regNumber == 0) {
+    if (linhaHeader->regNumber == 0) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
-        freeVeiculoHeader(&veiculoHeader);
         freeBTree(bTreeHeader);
+        freeVeiculoHeader(&veiculoHeader);
         freeLinhaHeader(&linhaHeader);
-        printf("%s\n", REG_NOT_FOUND);
-        return false;
+        return ERR_REG_NOT_FOUND;
     }
 
     // Read and displays each registry in screen
     VeiculoData *newVeiculoRegistry = (VeiculoData *) malloc(sizeof *newVeiculoRegistry);
     LinhaData *newLinhaRegistry = (LinhaData *) malloc(sizeof *newLinhaRegistry);
+    int mergedRegistries = 0;
     while (loadVeiculoBinaryRegistry(veiculoBinFile, newVeiculoRegistry)) {
         if (newVeiculoRegistry->isRemoved == VALID_REGISTRY) {
-            printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
             
             if(newVeiculoRegistry->linhaCode != EMPTY) {
                 int64_t offset = searchBTree(bTreeHeader, newVeiculoRegistry->linhaCode);
                 if(offset != EMPTY) {
                     fseek(linhaBinFile, offset, SEEK_SET);
                     loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry);
+                    printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
                     printLinhaRegistry(linhaHeader, newLinhaRegistry);
-
+                    mergedRegistries++;
                     freeLinhaData(newLinhaRegistry);
                 }
             }
@@ -389,34 +416,35 @@ bool printVeiculoMergedWithBTree(char *veiculoBinFilename, char *linhaBinFilenam
     fclose(linhaBinFile);
     fclose(veiculoBinFile);
 
-    return true;
+    if(mergedRegistries == 0) {
+        return ERR_REG_NOT_FOUND;
+    }
+
+    return EXIT_SUCCESS;
 }
 
-bool printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
+int8_t printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
     char *sortedVeiculoFilename = "VeiculoSorted";
     char *sortedLinhaFilename = "LinhaSorted";
 
-    if(!sortVeiculoFile(veiculoBinFilename, sortedVeiculoFilename)) {
-        printf("%s\n", FILE_ERROR);
-        return false;
+    int8_t errorHandler;
+    if (errorHandler = sortVeiculoFile(veiculoBinFilename, sortedVeiculoFilename)) {
+        return errorHandler;
     }
 
-    if(!sortLinhaFile(linhaBinFilename, sortedLinhaFilename)) {
-        printf("%s\n", FILE_ERROR);
-        return false;
+    if (errorHandler = sortLinhaFile(linhaBinFilename, sortedLinhaFilename)) {
+        return errorHandler;
     }
 
     FILE *veiculoBinFile = fopen(sortedVeiculoFilename, "rb");
     if (!veiculoBinFile) {
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
 
     FILE *linhaBinFile = fopen(sortedLinhaFilename, "rb");
     if (!linhaBinFile) {
         fclose(veiculoBinFile);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
     
     // Load file header
@@ -424,8 +452,13 @@ bool printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
     if (!veiculoHeader) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
+    }
+    if (veiculoHeader->regNumber == 0) {
+        fclose(veiculoBinFile);
+        fclose(linhaBinFile);
+        freeVeiculoHeader(&veiculoHeader);
+        return ERR_REG_NOT_FOUND;
     }
 
     LinhaHeader *linhaHeader = loadLinhaBinaryHeader(linhaBinFile);
@@ -433,41 +466,38 @@ bool printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
         freeVeiculoHeader(&veiculoHeader);
-        printf("%s\n", FILE_ERROR);
-        return false;
+        return ERR_FILE_PROC;
     }
-
-    if (veiculoHeader->regNumber == 0 || linhaHeader->regNumber == 0) {
+    if (linhaHeader->regNumber == 0) {
         fclose(veiculoBinFile);
         fclose(linhaBinFile);
         freeVeiculoHeader(&veiculoHeader);
         freeLinhaHeader(&linhaHeader);
-        printf("%s\n", REG_NOT_FOUND);
-        return false;
+        return ERR_REG_NOT_FOUND;
     }
-    
+
     // Read and displays each registry in screen
     VeiculoData *newVeiculoRegistry = (VeiculoData *) malloc(sizeof *newVeiculoRegistry);
-    
     LinhaData *newLinhaRegistry = (LinhaData *) malloc(sizeof *newLinhaRegistry);
     loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry);
-
+    int mergedRegistries = 0;
     while (loadVeiculoBinaryRegistry(veiculoBinFile, newVeiculoRegistry)) {
         if (newVeiculoRegistry->isRemoved == VALID_REGISTRY) {
-            printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
             
             if(newVeiculoRegistry->linhaCode != EMPTY) {
                 if(newVeiculoRegistry->linhaCode != newLinhaRegistry->linhaCode) {
                     freeLinhaData(newLinhaRegistry);
                     while(loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry)) {
                         if(newVeiculoRegistry->linhaCode == newLinhaRegistry->linhaCode) {
+                            printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
+                            printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                            mergedRegistries++;
                             break;
                         } else {
                             freeLinhaData(newLinhaRegistry);
                         }
                     }
                 }
-                printLinhaRegistry(linhaHeader, newLinhaRegistry);
             }
             freeVeiculoData(newVeiculoRegistry);
         }
@@ -480,5 +510,9 @@ bool printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
     fclose(linhaBinFile);
     fclose(veiculoBinFile);
 
-    return true;
+    if(mergedRegistries == 0) {
+        return ERR_REG_NOT_FOUND;
+    }
+
+    return EXIT_SUCCESS;
 }

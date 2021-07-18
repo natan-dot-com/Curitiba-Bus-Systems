@@ -4,6 +4,8 @@
 // Return value: none (void)
 void freeBTree(BTreeHeader *fileHeader) {
     if (fileHeader) {
+        rewind(fileHeader->fp);
+        fwrite(&fileHeader->fileStatus, sizeof(char), 1, fileHeader->fp);
         fclose(fileHeader->fp);
         free(fileHeader);
     }
@@ -72,8 +74,8 @@ BTreeHeader *openBTree(const char *filename) {
                 char fileStatus;
 
                 // Checks current file consistency
-                fread(&fileStatus, 1, sizeof(char), fileHeader->fp);
-                if (fileStatus != CONSISTENT_FILE) {
+                fread(&fileHeader->fileStatus, 1, sizeof(char), fileHeader->fp);
+                if (fileHeader->fileStatus != CONSISTENT_FILE) {
                     freeBTree(fileHeader);
                     return NULL;
                 }
