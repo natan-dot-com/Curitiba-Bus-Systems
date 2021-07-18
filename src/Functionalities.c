@@ -154,12 +154,20 @@ int8_t sortVeiculoFile(char *binFilename, char* sortedFilename) {
         fwrite(INCONSISTENT_FILE, sizeof(char), 1, sortedFile);
         fwrite("@", sizeof(char), VEICULO_HEADER_SIZE-1, sortedFile);
         
-        VeiculoData **veiculoList = (VeiculoData **) malloc(fileHeader->regNumber * sizeof(VeiculoData *));
+        VeiculoData **veiculoList = (VeiculoData **) calloc(fileHeader->regNumber, sizeof(VeiculoData *));
         for (int i = 0; i < fileHeader->regNumber; i++) {
-            loadVeiculoBinaryRegistry(binFile, veiculoList[i]);
-            if (veiculoList[i] == NULL) {
+            if(!veiculoList[i]) {
+                veiculoList[i] = (VeiculoData *) calloc(1, sizeof(VeiculoData));
+            }
+            if(loadVeiculoBinaryRegistry(binFile, veiculoList[i])) {
+                if (veiculoList[i]->isRemoved == REMOVED_REGISTRY) {
+                    freeVeiculoData(veiculoList[i]);
+                    i--;
+                }
+            } else {
                 i--;
             }
+            
         }
         fclose(binFile);
 
@@ -167,6 +175,7 @@ int8_t sortVeiculoFile(char *binFilename, char* sortedFilename) {
         for (int i = 0; i < fileHeader->regNumber; i++) {
             writeVeiculoRegistryOnBinary(sortedFile, veiculoList[i]);
             freeVeiculoData(veiculoList[i]);
+            free(veiculoList[i]);
         }
 
         fileHeader->byteNextReg = ftell(sortedFile);
