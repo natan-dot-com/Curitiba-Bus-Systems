@@ -1,6 +1,6 @@
 /*  SCC0215 - Organização de Arquivos (Turma A)
  *  Grupo 2: Natan Henrique Sanches (11795680) e Lucas Keiti Anbo Mihara (11796472) 
- *  Projeto Prático II: Implementação e otimização de busca em disco (Árvore B)
+ *  Projeto Prático III: Junção de multiplos arquivos de dados
 */
 
 #include <stdio.h>
@@ -862,6 +862,54 @@ int main(int argc, char *argv[]) {
                 freeLinhaHeader(&fileHeader);
                 binarioNaTela(indexFilename);
                 break;
+            }
+            case MERGE_VEICULO_LINHA: {
+                char *veiculoBinary = strsep(&inputLine, SPACE_DELIM);
+                char *linhaBinary = strsep(&inputLine, SPACE_DELIM);
+                char *veiculoField = strsep(&inputLine, SPACE_DELIM);
+                char *linhaField = strsep(&inputLine, LINE_BREAK);
+                
+            }
+            case MERGE_BTREE_VEICULO_LINHA: {
+                char *veiculoBinary = strsep(&inputLine, SPACE_DELIM);
+                char *linhaBinary = strsep(&inputLine, SPACE_DELIM);
+                char *veiculoField = strsep(&inputLine, SPACE_DELIM);
+                char *linhaField = strsep(&inputLine, SPACE_DELIM);
+                char *linhaBTree = strsep(&inputLine, LINE_BREAK);
+
+            }
+            case SORT_VEICULO_FILE: {
+                char *veiculoBinary = strsep(&inputLine, SPACE_DELIM);
+                char *sortedBinary = strsep(&inputLine, SPACE_DELIM);
+                char *sortField = strsep(&inputLine, LINE_BREAK);
+
+                if (!sortVeiculoFile(veiculoBinary, sortedBinary)) {
+                    free(trackReference);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+                binarioNaTela(sortedBinary);
+                break;
+            }
+            case SORT_LINHA_FILE: {
+                char *linhaBinary = strsep(&inputLine, SPACE_DELIM);
+                char *sortedBinary = strsep(&inputLine, SPACE_DELIM);
+                char *sortField = strsep(&inputLine, LINE_BREAK);
+
+                if (!sortLinhaFile(linhaBinary, sortedBinary)) {
+                    free(trackReference);
+                    printf("%s\n", FILE_ERROR);
+                    return 0;
+                }
+                binarioNaTela(sortedBinary);
+                break;
+            }
+            case MERGE_LINHA_VEICULO: {
+                char *veiculoBinary = strsep(&inputLine, SPACE_DELIM);
+                char *linhaBinary = strsep(&inputLine, SPACE_DELIM);
+                char *veiculoField = strsep(&inputLine, SPACE_DELIM);
+                char *linhaField = strsep(&inputLine, LINE_BREAK);
+
             }
         }
     }

@@ -52,6 +52,11 @@
         SEARCH_LINHA_PREFIX,
         INSERT_VEICULO_BTREE,
         INSERT_LINHA_BTREE,
+        MERGE_VEICULO_LINHA,
+        MERGE_BTREE_VEICULO_LINHA,
+        SORT_LINHA_FILE,
+        SORT_VEICULO_FILE,
+        MERGE_LINHA_VEICULO,
     };
 
     void binarioNaTela(char *nomeArquivoBinario);

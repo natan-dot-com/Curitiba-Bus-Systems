@@ -9,6 +9,8 @@ void freeBTree(BTreeHeader *fileHeader) {
     }
 }
 
+// Header functions //
+
 // (Extern) Creates a B-Tree header from scratch based on given file name
 // Return value: A pointer to the header struct of the given file (BTreeHeader *)
 BTreeHeader *createBTree(const char *filename) {
@@ -21,10 +23,11 @@ BTreeHeader *createBTree(const char *filename) {
                 return NULL;
             }
 
-            // Skip header
+            // Signs header as inconsistent and skip the remaining fields
             bytesWritten += fwrite(INCONSISTENT_FILE, sizeof(char), 1, newTree->fp);
-            for (int i = 0; i < 76; i++)
+            for (int i = 0; i < 76; i++) {
                 bytesWritten += fwrite("@", sizeof(char), 1, newTree->fp);
+            }
 
             if (bytesWritten != DISK_PAGE_SIZE) {
                 freeBTree(newTree);
@@ -63,18 +66,19 @@ BTreeHeader *openBTree(const char *filename) {
     if (filename != NULL) {
         size_t bytesRead = 0;
         BTreeHeader *fileHeader = (BTreeHeader *) malloc(sizeof(BTreeHeader));
-
         if (fileHeader) {
             fileHeader->fp = fopen(filename, "rb+");
-
-            if(fileHeader->fp != NULL) {
+            if (fileHeader->fp != NULL) {
                 char fileStatus;
+
+                // Checks current file consistency
                 fread(&fileStatus, 1, sizeof(char), fileHeader->fp);
-                if(fileStatus != CONSISTENT_FILE) {
+                if (fileStatus != CONSISTENT_FILE) {
                     freeBTree(fileHeader);
                     return NULL;
                 }
 
+                // Signs file as inconsistent
                 rewind(fileHeader->fp);
                 bytesRead += fwrite(INCONSISTENT_FILE, sizeof(char), 1, fileHeader->fp);
                 fflush(fileHeader->fp);
@@ -97,6 +101,8 @@ BTreeHeader *openBTree(const char *filename) {
     }
     return NULL;
 }
+
+// Node functions //
 
 // (Static) Writes an spectific node in the next RRN of current B-Tree.
 // Return value: If the write succeeded (boolean)
@@ -125,9 +131,10 @@ static bool writeNode(FILE *fp, BTreeNode *currNode) {
 
 // (Static) Frees an existent B-Tree node from memory.
 // Return value: none (void)
-static void freeNode(BTreeNode *node) {
-    if (node)
+static inline void freeNode(BTreeNode *node) {
+    if (node) {
         free(node);
+    }
 }
 
 // (Static) Loads an spectific B-Tree node at given RNN.
@@ -180,6 +187,8 @@ static BTreeNode *createNode(char isLeaf) {
     return newNode;
 }
 
+// Insertion related functions //
+
 // (Static) Inserts a given pair (KEY,OFFSET) into the current node.
 // Return value: If the insertion succeeded (boolean)
 static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, int32_t childRRN, int i) {
@@ -204,27 +213,25 @@ static bool insertKeyOnNode(BTreeNode *node, int32_t newKey, int64_t newOffset, 
 static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t newKey, int64_t newOffset, int32_t i) {
     IndexStruct *tempIndex = (IndexStruct *) malloc(sizeof(IndexStruct) * (MAX_KEYS+1));
     for(int j = 0, k = 0; j < MAX_KEYS + 1; j++, k++) {
-        if(j == i) {
+        if (j == i) {
             tempIndex[j].key = newKey; 
             tempIndex[j].regOffset = newOffset;
-
             j++;
         }
-        if(k < MAX_KEYS) {
+        if (k < MAX_KEYS) {
             tempIndex[j] = currNode->keyValues[k];
         }
     }
 
     int32_t *tempPointers = (int *) malloc(sizeof(int) * (BTREE_ORDER + 1));
     memset(tempPointers, -1, sizeof(int) * (BTREE_ORDER + 1));
-    if(currNode->isLeaf == IS_NOT_LEAF) {
+    if (currNode->isLeaf == IS_NOT_LEAF) {
         for(int j = 0, k = 0; k < BTREE_ORDER; j++, k++) {
             tempPointers[j] = currNode->childPointers[k];
-            if(j == i) {
+            if (j == i) {
                 tempPointers[++j] = fileHeader->nextNodeRRN - 1;
             }
         }
-
     }
 
     IndexStruct *promotionIndex = (IndexStruct *) malloc(sizeof(IndexStruct));
@@ -234,14 +241,14 @@ static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t 
     currNode->keyValues[MAX_KEYS/2].key = EMPTY;
     currNode->keyValues[MAX_KEYS/2].regOffset = EMPTY;
     BTreeNode *newNode = createNode(currNode->isLeaf);
-    if(newNode) {
+    if (newNode) {
         
         newNode->nodeRRN = fileHeader->nextNodeRRN++;
         
         for(int j = MAX_KEYS/2 + 1, k = 0; j < MAX_KEYS + 1; j++, k++) {
             insertKeyOnNode(newNode, tempIndex[j].key, tempIndex[j].regOffset, tempPointers[j], k);
             currNode->childPointers[j] = EMPTY;
-            if(j < MAX_KEYS) {
+            if (j < MAX_KEYS) {
                 currNode->keyValues[j].key = EMPTY;
                 currNode->keyValues[j].regOffset = EMPTY;
             }
@@ -270,16 +277,16 @@ static IndexStruct *split(BTreeHeader *fileHeader, BTreeNode *currNode, int32_t 
 static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newKey, int64_t newOffset) {
     BTreeNode *currNode = loadNode(fileHeader->fp, regRRN);
     
-    if(!currNode) {
+    if (!currNode) {
         return NULL;
     }
     
     for(int i = 0; i <= currNode->keyCounter; i++) {
-        if(i == currNode->keyCounter || newKey < currNode->keyValues[i].key) {
-            if(currNode->childPointers[i] != EMPTY) {
+        if (i == currNode->keyCounter || newKey < currNode->keyValues[i].key) {
+            if (currNode->childPointers[i] != EMPTY) {
                 IndexStruct *promotedIndex = insert(fileHeader, currNode->childPointers[i], newKey, newOffset);
-                if(promotedIndex) {
-                    if(currNode->keyCounter == MAX_KEYS) {
+                if (promotedIndex) {
+                    if (currNode->keyCounter == MAX_KEYS) {
                         int32_t promotedKey = promotedIndex->key;
                         int64_t promotedOffset = promotedIndex->regOffset;
                         free(promotedIndex);
@@ -296,10 +303,13 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
                 }
                 freeNode(currNode);
                 return NULL;
-            } else if(currNode->keyCounter == MAX_KEYS) {
-                //split
+            } 
+            // If the current node is full, split it
+            else if(currNode->keyCounter == MAX_KEYS) {
                 return split(fileHeader, currNode, newKey, newOffset, i);
-            } else {
+            } 
+            // If there's sufficient empty space on the current node, add the pair into it
+            else {
                 insertKeyOnNode(currNode, newKey, newOffset, EMPTY, i);
                 writeNode(fileHeader->fp, currNode);
                 
@@ -314,6 +324,8 @@ static IndexStruct *insert(BTreeHeader *fileHeader, int32_t regRRN, int32_t newK
 // Return value: A pointer to the promoted index (IndexStruct *)
 void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
     if (fileHeader) {
+
+        // Creates the root node if the tree is empty
         if (fileHeader->rootNode == EMPTY) {
             BTreeNode *root = createNode(IS_LEAF);
             root->keyCounter++;
@@ -327,9 +339,11 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
             writeNode(fileHeader->fp, root);
             freeNode(root);
             return;
-        } else {
+        }
+        // Tree transversal to find where the new given pair has to be inserted
+        else {
             IndexStruct *promotedIndex = insert(fileHeader, fileHeader->rootNode, newKey, newOffset);
-            if(promotedIndex) {
+            if (promotedIndex) {
                 BTreeNode *newRoot = createNode(IS_NOT_LEAF);
                 insertKeyOnNode(newRoot, promotedIndex->key, promotedIndex->regOffset, fileHeader->rootNode, 0);
                 newRoot->childPointers[1] = fileHeader->nextNodeRRN - 1;
@@ -344,13 +358,15 @@ void insertOnBTree(BTreeHeader *fileHeader, int32_t newKey, int64_t newOffset) {
     }
 }
 
+// Search related functions //
+
 // (Static) Recursive auxiliar search of a given key in B-Tree.
 // Return value: The respective offset of the key in data file (int64_t)
 static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
     BTreeNode *node = loadNode(fp, RRN);
-    if(node) {
+    if (node) {
         for(int i = 0; i <= node->keyCounter; i++) {
-            if(i == node->keyCounter || key < node->keyValues[i].key) {
+            if (i == node->keyCounter || key < node->keyValues[i].key) {
                 int32_t childRRN = node->childPointers[i];
                 freeNode(node);
 
@@ -359,7 +375,7 @@ static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
                     
                 return search(fp, childRRN, key);
             }
-            if(node->keyValues[i].key == key) {
+            if (node->keyValues[i].key == key) {
                 int64_t offset = node->keyValues[i].regOffset;
                 freeNode(node);
                 return offset;
@@ -373,7 +389,7 @@ static int64_t search(FILE *fp, int32_t RRN, int32_t key) {
 // (Extern) Searches a given key in B-Tree.
 // Return value: The respective offset of the key in data file (int64_t)
 int64_t searchBTree(BTreeHeader *fileHeader, int32_t key) {
-    if(fileHeader) {
+    if (fileHeader) {
         return search(fileHeader->fp, fileHeader->rootNode, key);
     }
     return EMPTY;
