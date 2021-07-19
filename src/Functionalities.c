@@ -224,11 +224,14 @@ int8_t sortLinhaFile(char *binFilename, char* sortedFilename) {
         LinhaData **linhaList = (LinhaData **) calloc(fileHeader->regNumber, sizeof(LinhaData *));
         for (int i = 0; i < fileHeader->regNumber; i++) {
             if (!linhaList[i]) {
-                linhaList[i] = (LinhaData *) malloc(sizeof(LinhaData));
+                linhaList[i] = (LinhaData *) calloc(1, sizeof(LinhaData));
             }
-            loadLinhaBinaryRegistry(binFile, linhaList[i]);
-            if (linhaList[i]->isRemoved == REMOVED_REGISTRY) {
-                freeLinhaData(linhaList[i]);
+            if(loadLinhaBinaryRegistry(binFile, linhaList[i])) {
+                if (linhaList[i]->isRemoved == REMOVED_REGISTRY) {
+                    freeLinhaData(linhaList[i]);
+                    i--;
+                }
+            } else {
                 i--;
             }
         }
@@ -238,6 +241,7 @@ int8_t sortLinhaFile(char *binFilename, char* sortedFilename) {
         for (int i = 0; i < fileHeader->regNumber; i++) {
             writeLinhaRegistryOnBinary(sortedFile, linhaList[i]);
             freeLinhaData(linhaList[i]);
+            free(linhaList[i]);
         }
 
         fileHeader->byteNextReg = ftell(sortedFile);
@@ -494,23 +498,42 @@ int8_t printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
         if (newVeiculoRegistry->isRemoved == VALID_REGISTRY) {
             
             if(newVeiculoRegistry->linhaCode != EMPTY) {
-                if(newVeiculoRegistry->linhaCode != newLinhaRegistry->linhaCode) {
+                if(newLinhaRegistry->linhaCode == newVeiculoRegistry->linhaCode) {
+                    printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
+                    printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                    mergedRegistries++;
+                } else {
+                    if(newLinhaRegistry->linhaCode > newVeiculoRegistry->linhaCode) {
+                        fseek(linhaBinFile, LINHA_HEADER_SIZE, SEEK_SET);
+                    }
+
                     freeLinhaData(newLinhaRegistry);
+                    bool hasRegistry = false;
                     while(loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry)) {
                         if(newVeiculoRegistry->linhaCode == newLinhaRegistry->linhaCode) {
                             printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
                             printLinhaRegistry(linhaHeader, newLinhaRegistry);
                             mergedRegistries++;
+                            hasRegistry = true;
                             break;
-                        } else {
-                            freeLinhaData(newLinhaRegistry);
+                        } else if(newLinhaRegistry->linhaCode > newVeiculoRegistry->linhaCode) {
+                            hasRegistry = true;
+                            break;
                         }
+                        freeLinhaData(newLinhaRegistry);
+                    }
+                    if(!hasRegistry) {
+                        fseek(linhaBinFile, LINHA_HEADER_SIZE, SEEK_SET);
+                        loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry);
                     }
                 }
             }
             freeVeiculoData(newVeiculoRegistry);
         }
     }
+    remove(sortedVeiculoFilename);
+    remove(sortedLinhaFilename);
+    freeLinhaData(newLinhaRegistry);
 
     free(newLinhaRegistry);
     free(newVeiculoRegistry);
