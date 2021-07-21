@@ -381,3 +381,4 @@ void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry) {
         printf("\n");
     }
 }
+

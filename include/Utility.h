@@ -7,6 +7,7 @@
     #include <ctype.h>
     #include <stdbool.h>
 
+
     // Delimiters for strsep
     #define NONE ""
     #define QUOTES_DELIM "\""

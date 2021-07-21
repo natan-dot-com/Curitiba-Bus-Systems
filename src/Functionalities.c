@@ -1,5 +1,122 @@
 #include "Functionalities.h"
 
+void printRegistries(VeiculoHeader *veiculoHeader, VeiculoData *veiculoRegistry, LinhaHeader *linhaHeader, LinhaData *linhaRegistry) {
+    if (veiculoHeader && veiculoRegistry) {
+        printf("%.*s: %.*s\n", PREFIX_DESC_SIZE, veiculoHeader->prefixDescription, PREFIX_SIZE, veiculoRegistry->prefix);
+
+        printf("%.*s: ", MODEL_DESC_SIZE, veiculoHeader->modelDescription);
+        if (veiculoRegistry->modelSize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", veiculoRegistry->modelSize, veiculoRegistry->model);
+
+        printf("%.*s: ", CATEGORY_DESC_SIZE, veiculoHeader->categoryDescription);
+        if (veiculoRegistry->categorySize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", veiculoRegistry->categorySize, veiculoRegistry->category);
+
+        printf("%.*s: ", DATE_DESC_SIZE, veiculoHeader->dateDescription);
+        if(veiculoRegistry->date[0] == '\0') {
+            printf("%s\n", NULL_FIELD);
+        }
+        else {
+            // Proccess date formatting
+            int year, month;
+
+            char *trackReference = veiculoRegistry->date;
+            year = atoi(strsep(&veiculoRegistry->date, "-"));
+            month = atoi(strsep(&veiculoRegistry->date, "-"));
+
+            char day[3];
+            strncpy(day, veiculoRegistry->date, 2);
+            day[2] = '\0';
+            veiculoRegistry->date = trackReference;
+            
+            printf("%s de ", day);
+            switch(month) {
+                case 1:
+                    printf("janeiro");
+                    break;
+                case 2:
+                    printf("fevereiro");
+                    break;
+                case 3:
+                    printf("março");
+                    break;
+                case 4:
+                    printf("abril");
+                    break;
+                case 5:
+                    printf("maio");
+                    break;
+                case 6:
+                    printf("junho");
+                    break;
+                case 7:
+                    printf("julho");
+                    break;
+                case 8:
+                    printf("agosto");
+                    break;
+                case 9:
+                    printf("setembro");
+                    break;
+                case 10:
+                    printf("outubro");
+                    break;
+                case 11:
+                    printf("novembro");
+                    break;
+                case 12:
+                    printf("dezembro");
+                    break;
+            }
+            printf(" de %d\n", year);
+        }
+
+        printf("%.*s: ", SEATS_DESC_SIZE, veiculoHeader->seatsDescription);
+        if(veiculoRegistry->seatsNumber == -1)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%d\n", veiculoRegistry->seatsNumber);
+
+    }
+
+    if (linhaHeader && linhaRegistry) {
+        printf("%.*s: %d\n", CODE_DESC_SIZE, linhaHeader->codeDescription, linhaRegistry->linhaCode);
+
+        printf("%.*s: ", NAME_DESC_SIZE, linhaHeader->nameDescription);
+        if (linhaRegistry->nameSize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", linhaRegistry->nameSize, linhaRegistry->linhaName);
+
+        printf("%.*s: ", COLOR_DESC_SIZE, linhaHeader->colorDescription);
+        if (linhaRegistry->colorSize == 0)
+            printf("%s\n", NULL_FIELD);
+        else
+            printf("%.*s\n", linhaRegistry->colorSize, linhaRegistry->linhaColor);
+        
+        printf("%.*s: ", CARD_DESC_SIZE, linhaHeader->cardDescription);
+        switch (linhaRegistry->cardAcceptance) {
+            case 'S': {
+                printf("%s\n", CARD_S_MESSAGE);
+                break;
+            }
+            case 'N': {
+                printf("%s\n", CARD_N_MESSAGE);
+                break;
+            }
+            case 'F': {
+                printf("%s\n", CARD_F_MESSAGE);
+                break;
+            }
+        }
+        printf("\n");
+    }
+}
+
 // (Extern) Reads a CSV file of category "Veiculo" and write its respective binary file
 // Return value: If everything succeeded as expected (boolean)
 int8_t createVeiculoBinaryFile(char *csvFilename, char *binFilename) {
@@ -128,13 +245,13 @@ int8_t sortVeiculoFile(char *binFilename, char* sortedFilename) {
     if (binFilename) {
         FILE *binFile = fopen(binFilename, "rb");
         if (!binFile) {
-            return ERR_FILE_LOAD;
+            return ERR_FILE_PROC;
         }
 
         VeiculoHeader *fileHeader = loadVeiculoBinaryHeader(binFile);
         if (!fileHeader) {
             fclose(binFile);
-            return ERR_FILE_LOAD;
+            return ERR_FILE_PROC;
         }
         if (fileHeader->regNumber == 0) {
             freeVeiculoHeader(&fileHeader);
@@ -148,7 +265,7 @@ int8_t sortVeiculoFile(char *binFilename, char* sortedFilename) {
         if (!sortedFile) {
             fclose(binFile);
             freeVeiculoHeader(&fileHeader);
-            return ERR_FILE_LOAD;
+            return ERR_FILE_PROC;
         }
 
         fwrite(INCONSISTENT_FILE, sizeof(char), 1, sortedFile);
@@ -188,20 +305,20 @@ int8_t sortVeiculoFile(char *binFilename, char* sortedFilename) {
 
         return EXIT_SUCCESS;
     }
-    return ERR_FILE_LOAD;
+    return ERR_FILE_PROC;
 }
 
 int8_t sortLinhaFile(char *binFilename, char* sortedFilename) {
     if (binFilename) {
         FILE *binFile = fopen(binFilename, "rb");
         if (!binFile) {
-            return ERR_FILE_LOAD;
+            return ERR_FILE_PROC;
         }
 
         LinhaHeader *fileHeader = loadLinhaBinaryHeader(binFile);
         if (!fileHeader) {
             fclose(binFile);
-            return ERR_FILE_LOAD;
+            return ERR_FILE_PROC;
         }
         if (fileHeader->regNumber == 0) {
             fclose(binFile);
@@ -215,7 +332,7 @@ int8_t sortLinhaFile(char *binFilename, char* sortedFilename) {
         if (!sortedFile) {
             fclose(binFile);
             freeLinhaHeader(&fileHeader);
-            return ERR_FILE_LOAD;
+            return ERR_FILE_PROC;
         }
 
         fwrite(INCONSISTENT_FILE, sizeof(char), 1, sortedFile);
@@ -254,7 +371,7 @@ int8_t sortLinhaFile(char *binFilename, char* sortedFilename) {
 
         return EXIT_SUCCESS;
     }
-    return ERR_FILE_LOAD;
+    return ERR_FILE_PROC;
 }
 
 int8_t printVeiculoMerged(char *veiculoBinFilename, char *linhaBinFilename) {
@@ -314,8 +431,9 @@ int8_t printVeiculoMerged(char *veiculoBinFilename, char *linhaBinFilename) {
                 while(loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry)) {
                     if(newLinhaRegistry->isRemoved == VALID_REGISTRY) {
                         if(newVeiculoRegistry->linhaCode == newLinhaRegistry->linhaCode) {
-                            printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
-                            printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                            // printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
+                            // printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                            printRegistries(veiculoHeader, newVeiculoRegistry, linhaHeader, newLinhaRegistry);
                             freeLinhaData(newLinhaRegistry);
                             mergedRegistries++;
                             break;
@@ -410,8 +528,9 @@ int8_t printVeiculoMergedWithBTree(char *veiculoBinFilename, char *linhaBinFilen
                 if(offset != EMPTY) {
                     fseek(linhaBinFile, offset, SEEK_SET);
                     loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry);
-                    printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
-                    printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                    // printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
+                    // printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                    printRegistries(veiculoHeader, newVeiculoRegistry, linhaHeader, newLinhaRegistry);
                     mergedRegistries++;
                     freeLinhaData(newLinhaRegistry);
                 }
@@ -499,8 +618,9 @@ int8_t printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
             
             if(newVeiculoRegistry->linhaCode != EMPTY) {
                 if(newLinhaRegistry->linhaCode == newVeiculoRegistry->linhaCode) {
-                    printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
-                    printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                    // printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
+                    // printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                    printRegistries(veiculoHeader, newVeiculoRegistry, linhaHeader, newLinhaRegistry);
                     mergedRegistries++;
                 } else {
                     if(newLinhaRegistry->linhaCode > newVeiculoRegistry->linhaCode) {
@@ -511,8 +631,9 @@ int8_t printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
                     bool hasRegistry = false;
                     while(loadLinhaBinaryRegistry(linhaBinFile, newLinhaRegistry)) {
                         if(newVeiculoRegistry->linhaCode == newLinhaRegistry->linhaCode) {
-                            printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
-                            printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                            // printVeiculoRegistry(veiculoHeader, newVeiculoRegistry);
+                            // printLinhaRegistry(linhaHeader, newLinhaRegistry);
+                            printRegistries(veiculoHeader, newVeiculoRegistry, linhaHeader, newLinhaRegistry);
                             mergedRegistries++;
                             hasRegistry = true;
                             break;
@@ -548,3 +669,5 @@ int8_t printVeiculoSortMerge(char *veiculoBinFilename, char *linhaBinFilename) {
 
     return EXIT_SUCCESS;
 }
+
+// 11 13 16 17
