@@ -9,6 +9,7 @@
     #include <string.h>
     #include "readline.h"
     #include "Utility.h"
+    #include "LinhaFileManager.h"
 
     // Header related constants (size in bytes)
     #define VEICULO_HEADER_SIZE 175
@@ -63,5 +64,7 @@
     
     void printVeiculoHeader(VeiculoHeader *header);
     void printVeiculoRegistry(VeiculoHeader *header, VeiculoData *registry);
+
+    void printRegistries(VeiculoHeader *veiculoHeader, VeiculoData *veiculoRegistry, LinhaHeader *linhaHeader, LinhaData *linhaRegistry);
 
 #endif 
